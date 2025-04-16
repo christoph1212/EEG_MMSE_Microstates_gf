@@ -1,5 +1,5 @@
 Präregistrierung/*
 
-Data/RawData/*
+Data/*
 !Data/RawData/.gitignore
 
