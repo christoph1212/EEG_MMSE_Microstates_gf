@@ -3,3 +3,8 @@ Präregistrierung/*
 Data/*
 !Data/RawData/.gitignore
 
+Code/Python/venv/
+
+*.xlsx
+
+*.jpg
