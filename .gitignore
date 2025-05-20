@@ -4,6 +4,7 @@ Data/*
 !Data/RawData/.gitignore
 
 Code/Python/venv/
+Code/Python/__pycache__/
 
 *.xlsx
 
