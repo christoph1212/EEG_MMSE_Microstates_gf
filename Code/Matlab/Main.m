@@ -29,7 +29,7 @@ close
 dir_Root    = "E:/Complexity/";                   % path to project
 dir_Raw     = strcat(dir_Root, "Data/RawData/");  % path to raw data
 dir_Log     = strcat(dir_Root, "Data/Log/");      % path where log data should be stored
-Overwrite   = 0;                                  % 0 = no; 1 = yes
+Overwrite   = 1;                                  % 0 = no; 1 = yes
 
 % Start EEGLAB
 dir_eeglab  = "E:/Complexity/Code/Matlab/eeglab2025.0.0";

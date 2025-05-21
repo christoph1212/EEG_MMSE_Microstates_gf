@@ -66,6 +66,10 @@ parfor i_Sub = 1:length(Raw_Files)
     if (sum(contains({Files_PreProc.name},Raw_Files(i_Sub).name)) == 2) && (Overwrite == 0)
         continue
     end
+    % ignore subs with unknown reference
+    if contains(Raw_Files(i_Sub).name, "sub-SS08EL29") || contains(Raw_Files(i_Sub).name, "sub-EL07EL18")
+        continue
+    end
 
     run_silent(Overwrite, Raw_Files, dir_Preproc, dir_Log, SplitStruct, FileName, InputFile, Cond_FileName, i_Sub);
 
@@ -227,8 +231,7 @@ try
             EEG.cc.d0201__remBad.chanlocs_006_BadChansRem = EEG.chanlocs;
             % remember chanlocs of these bad channels (=only bad ones)
             % EEG.cc.d0201__remBad.chanlocs_006_BadChans = EEG.cc.d0001__dnSamp.chanlocs_005_no_ref(temp_out.allrmchan);
-            EEG.cc.d0201__remBad.removed_chans = {EEG.cc.d0201__remBad.chanlocs_before_rem(temp_out.allrmchan).labels};
-            
+            EEG.cc.d0201__remBad.removed_chans = {EEG.cc.d0201__remBad.chanlocs_before_rem(temp_out.allrmchan).labels};            
             
             %% Cleaning: Bad Segments using trimOutlier I/III
             EEG.cc.d0201__remBad.channelSdLowerBound = -Inf; % SD
@@ -309,10 +312,12 @@ try
                 EEG.cc.d0201__remBad.removed_chans = 0;
             end
 
-            Log_table = table({Raw_Files(i_Sub).name(1:end-4)}, {Cond_FileName}, length(EEG.chanlocs), length(badIC), EEG.cc.d0201__remBad.removed_chans, ...
+            Log_table = table({Raw_Files(i_Sub).name(1:end-4)}, {Cond_FileName}, length(EEG.chanlocs), length(badIC), length(EEG.cc.d0201__remBad.removed_chans), ...
                 'VariableNames', {'File Name', 'Condition', 'Number Channels', 'BadICs', 'Interpolated Channels'});
 
-            log_filename = strcat(dir_Log, 'Log_', Raw_Files(i_Sub).name(1:end-4), '.csv');
+            ID = strsplit(Raw_Files(i_Sub).name, '_');
+            ID = ID{1};
+            log_filename = strcat(dir_Log, 'Log_', ID, '_', Cond_FileName, '.csv');
             writetable(Log_table, log_filename);
             
         catch e
