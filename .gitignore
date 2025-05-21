@@ -1,7 +1,7 @@
 Präregistrierung/*
 
-Data/*
-!Data/RawData/.gitignore
+Data/**
+!Data/**/.gitignore
 
 Code/Python/venv/
 Code/Python/__pycache__/
