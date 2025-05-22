@@ -99,3 +99,19 @@ if save_errors == 1
     ErrorFilename = strcat(Preproc_Log, '\Errors.csv');
     writetable(err_table, ErrorFilename);
 end
+
+
+%% Descriptives after Snipping
+
+% Set path and load files
+log_path = fullfile(dir_Log, 'Preproc');
+log_files = dir(fullfile(log_path, 'Log_*.csv'));
+
+% Initialize empty table
+all_logs = table();
+
+for i = 1:length(log_files)
+    file = fullfile(log_path, log_files(i).name);
+    T = readtable(file);
+    all_logs = [all_logs; T];
+end
