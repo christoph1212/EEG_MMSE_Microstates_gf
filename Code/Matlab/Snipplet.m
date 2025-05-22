@@ -5,6 +5,8 @@ function Snipplet(dir_Root, dir_Log, Overwrite)
 %   - 40s continuous epochs or 
 %   - longest continuous epoch of the preprocessed data
 %
+% EEG-Channel order will be harmonized.
+%
 % Inputs:
 %   dir_Root:   String pointing to the project's parent folder
 %   dir_Log:    String pointing to Log-Files directory
@@ -33,6 +35,13 @@ end
 %% Prepare List of Files to be Processed
 PreProcFiles = dir(fullfile(dir_Preproc, '**/*.set'));  %get list of files in *.set format in any subfolder
 
+%% Prepare Template to sort Channels
+EEG_template = struct([]);
+template_file = [PreProcFiles(1).folder '\' PreProcFiles(1).name];
+evalc("EEG_template = pop_loadset(template_file);");
+
+template_chans = {EEG_template.chanlocs.labels};
+
 %% First step to increase calculation speed- run multiple subjects in parallel
 delete(gcp('nocreate')); % make sure that previous pooling is closed
 parpool("Processes");
@@ -48,7 +57,7 @@ parfor i_Sub = 1:length(PreProcFiles)
     end
 
     FileName = PreProcFiles(i_Sub).name;
-    run_silent(PreProcFiles, dir_Snipplet, dir_Log, i_Sub);
+    run_silent(PreProcFiles, dir_Snipplet, dir_Log, i_Sub, template_chans);
 
 end
 
@@ -56,7 +65,7 @@ fprintf("*****************\nFinished Snipping\n*****************\n")
 
 end
 
-function run_silent(PreProcFiles, dir_Snipplet, dir_Log, i_Sub)
+function run_silent(PreProcFiles, dir_Snipplet, dir_Log, i_Sub, template_chans)
 
 try
 
@@ -66,6 +75,14 @@ try
     EEG = struct([]);
     InputFile = [PreProcFiles(i_Sub).folder,'/',PreProcFiles(i_Sub).name];
     evalc("EEG = pop_loadset(InputFile);");
+
+    % Sort Channels according to Template
+    current_labels = {EEG.chanlocs.labels};
+
+    [~, sort_idx] = ismember(template_chans, current_labels);
+
+    EEG.data = EEG.data(sort_idx, :, :);
+    EEG.chanlocs = EEG.chanlocs(sort_idx);
 
     % LogFile to append Snipplet length
     startIdx = strfind(PreProcFiles(i_Sub).name, 'sub-');

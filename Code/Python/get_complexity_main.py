@@ -32,7 +32,7 @@ import microstates_subject
 cwd = Path.cwd()
 dir_root = cwd.parent.parent
 dir_data = dir_root / "Data"
-dir_preprocessed = dir_data / "Preprocessed"  # Snippet prob. better
+dir_preprocessed = dir_data / "Snipplet"  # Epoched data
 
 # read names of files
 files = list(dir_preprocessed.rglob("*.set"))
