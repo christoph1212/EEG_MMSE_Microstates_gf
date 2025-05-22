@@ -85,11 +85,10 @@ try
     EEG.chanlocs = EEG.chanlocs(sort_idx);
 
     % LogFile to append Snipplet length
-    startIdx = strfind(PreProcFiles(i_Sub).name, 'sub-');
-    endIdx = strfind(PreProcFiles(i_Sub).name, '_eeg.set');
-    LogFileName = ['Log_' PreProcFiles(i_Sub).name(startIdx:endIdx + length('eeg')) '.csv'];
-    LogFile = strcat(dir_Log, LogFileName);
-       
+    splits = strsplit(PreProcFiles(i_Sub).name, '_');
+    filename = strcat(splits{5}, '_', splits{1}, '_', splits{2}, '_', splits{3}, '_', splits{4});
+    LogFile = strcat(dir_Log, 'Log_', filename, '.csv');
+           
     %% extract 40s of consecutive timepoints
     % Check length of longest clean epoch
     Boundaries = [EEG.event.latency]';
