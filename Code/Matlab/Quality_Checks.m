@@ -115,3 +115,29 @@ for i = 1:length(log_files)
     T = readtable(file);
     all_logs = [all_logs; T];
 end
+
+%% Check Raw File Folders
+
+dir_Root = "E:/Complexity/";                                % path to project
+dir_Raw  = strcat(dir_Root, "Data/RawData/task-Resting");   % path to raw data
+
+subdir = dir(dir_Raw);
+subdir = subdir([subdir.isdir] & ~ismember({subdir.name}, {'.', '..'}));
+
+for i = 1:length(subdir)
+    subID = subdir(i).name;
+    eegDir = fullfile(dir_Raw, subID, 'eeg');
+
+    if isfolder(eegDir)
+        files = dir(fullfile(eegDir, '*'));
+        % Ignoriere '.' und '..'
+        files = files(~[files.isdir]);
+
+        numFiles = numel(files);
+        if numFiles < 12
+            fprintf('%s: %d Files\n', subID, numFiles);
+        end
+    else
+        fprintf('%s: eeg folder not found\n', subID);
+    end
+end
