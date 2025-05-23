@@ -83,7 +83,7 @@ function run_silent(Overwrite, Raw_Files, dir_Preproc, dir_Log, SplitStruct, Fil
 
 try
 
-    fprintf('Standardizing Subject %s: Select Channels, Reference, Sampling Rate. \n', Raw_Files(i_Sub).name);
+    fprintf('Standardizing File: %s; Select Channels, Reference, Sampling Rate. \n', Raw_Files(i_Sub).name);
     
     % Initate variables, and load EEG lab File
     EEG = struct([]);
@@ -193,7 +193,7 @@ try
                 continue
             end
 
-            fprintf('\nProcessing Subject: %s; Condition: %s\n', Raw_Files(i_Sub).name, Cond_FileName);
+            fprintf('Processing File: %s; Condition: %s\n', Raw_Files(i_Sub).name, Cond_FileName);
             
             % Check if file is not empty
             if EEG.pnts < EEG.srate
@@ -335,8 +335,9 @@ try
             fclose(fid1);
             
         end
-        fprintf('Finished Subject %s.\n',Raw_Files(i_Sub).name);
+        
     end
+    fprintf('\nFinished File: %s.\n\n',Raw_Files(i_Sub).name);
     
 catch e
     % If error ocurrs, create ErrorMessage
