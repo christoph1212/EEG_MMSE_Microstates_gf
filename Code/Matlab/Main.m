@@ -23,9 +23,8 @@ clear
 clc
 close
 
-%% Preprocessing
+%% Setup
 
-% Setup
 dir_Root    = "E:/Complexity/";                   % path to project
 dir_Raw     = strcat(dir_Root, "Data/RawData/");  % path to raw data
 dir_Log     = strcat(dir_Root, "Data/Log/");      % path where log data should be stored
@@ -35,6 +34,7 @@ Overwrite   = 1;                                  % 0 = no; 1 = yes
 dir_eeglab  = "E:/Complexity/Code/Matlab/eeglab2025.0.0";
 addpath(dir_eeglab);
 eeglab nogui
+clc
 
 % Check for necessary Plugins
 if ~ismember('trimOutlier', {PLUGINLIST.plugin})
@@ -47,7 +47,13 @@ if ~ismember('Adjust', {PLUGINLIST.plugin})
         "ideally clone 'eeglab2025.0.0' folder from GitHub repository.")
 end
 
-% Actual Preprocessing
+fprintf("Let's get started\n")
+fprintf(['Alright, all Plugin are available.\nYour folder settings:\n\n' ...
+    'Root-Folder: %s\nRaw-Folder: %s\nLog-Folder: %s\nOverwrite: %d\n'], ...
+    dir_Root, dir_Raw, dir_Log, Overwrite)
+
+%% Preprocessing
+
 Preproc(dir_Raw, dir_Root, dir_Log, Overwrite)
 
 %% Epoch Extraction
@@ -60,31 +66,4 @@ Snipplet(dir_Root, dir_Log, Overwrite)
 MMSE_silent(dir_Root, dir_Log, Overwrite)
 
 % MMSE Feature Extraction
-dir_MMSE = strcat(dir_Root, "Data/MMSEData/");
-dir_feat = strcat(dir_Root, "Data/MMSEFeatures/");
-
-if ~isfolder(dir_MMSE)
-    error("Folder 'Data/MMSEData/' not found. Please run MMSE_silent().")
-end
-
-if ~isfolder(dir_feat)
-    mkdir(dir_feat)
-end
-
-% Get relevant files
-files = dir(fullfile(dir_MMSE, '**/*.csv'));
-files = {files.name};
-
-% Start parallel processing
-delete(gcp('nocreate'));
-parpool("Processes");
-
-parfor i_file = 1:length(files)
-
-    file = files{i_file};
-    input_file = strcat(dir_MMSE, file);
-    output_file = strcat(dir_feat, "features_", file);
-
-    mmse_to_feats(input_file, output_file);
-
-end
+MMSE_features(dir_Root, dir_Log, Overwrite)
