@@ -1,7 +1,8 @@
 function MMSE_silent(dir_Root, dir_Log, Overwrite)
 %% Calculation of MMSE vectors
 % Outputs:
-%   Creates a .csv file of the MMSE vectors to be processed further, one per subject and condition and run
+%   Creates a .csv file of the MMSE vectors to be processed further, one 
+%   per subject, condition and channel set
 %
 % Inputs:
 %   dir_Root:   String pointing to the project's parent folder
@@ -38,8 +39,7 @@ end
 %% Prepare List of Files to be Processed
 Snipplet_List = dir(strcat(dir_Snipplet, '*.set'));  %get list of files in *.set format
 
-%% for writing in logfile
-fprintf('\nMMSE calculation for %d Subjects. \n', length(Snipplet_List));
+fprintf('\nMMSE calculation for %d Files. \n', length(Snipplet_List));
 
 %% Define Channel Sets for integrated MMSE vector calculation
 elecAnF = {'f7','f8','f3','f4'};
@@ -57,10 +57,9 @@ ChannelSets = struct('sets',{elecAnF,elecAnFL,elecAnFR,elecAnC,elecAnP,elecAnPL,
     'setnames', {'F','FL','FR','C', 'P', 'PL', 'PR', 'ML', 'MR'});
 
 
-%% Run multiple subjects in parallel
+%% Increase calculation speed by running multiple subjects in parallel
 delete(gcp('nocreate')); % make sure that previous pooling is closed
-parpool(Parpoolsize);
-
+parpool("Processes");
 
 %% Looped preprocessing
 MMSE_Files = dir(dir_MMSE);
