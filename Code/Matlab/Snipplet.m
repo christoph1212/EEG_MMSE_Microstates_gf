@@ -42,7 +42,7 @@ evalc("EEG_template = pop_loadset(template_file);");
 
 template_chans = {EEG_template.chanlocs.labels};
 
-%% First step to increase calculation speed- run multiple subjects in parallel
+%% Increase calculation speed by running multiple subjects in parallel
 delete(gcp('nocreate')); % make sure that previous pooling is closed
 parpool("Processes");
 
