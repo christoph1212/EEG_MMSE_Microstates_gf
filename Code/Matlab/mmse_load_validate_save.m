@@ -27,6 +27,6 @@ function x = mmse_load_validate_save(file,elecAn,channelset,FileName,outputfolde
     x.name=['MMSE','_',channelset,'_',FileName];
     x.mmse=file.MMSE.MMSEValues(:,1)'; 
     filename_temp=[x.name,'.csv'];
-    writetable(struct2table(x),[outputfolder,'/',filename_temp],'Delimiter','\t'); %exports table to the current folder
+    writetable(struct2table(x),[outputfolder,filename_temp],'Delimiter','\t'); %exports table to the current folder
     
 end
