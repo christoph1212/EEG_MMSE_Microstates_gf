@@ -327,3 +327,101 @@ for i_row = 1:numel(conditions)
     plotidx = plotidx + 1;
 
 end
+
+%% MMSE Features
+
+% Set path and load files
+feature_path = strcat(dir_Root, "Data/MMSEFeatures/");
+feature_files = dir(fullfile(feature_path, 'features_*.csv'));
+
+% Initialize empty table
+all_features = table();
+
+% Loop through vector files
+for i = 1:length(feature_files)
+    fprintf('%d/%d\n', i, length(feature_files))
+    file = fullfile(feature_path, feature_files(i).name);
+    T = readtable(file, "Delimiter", ';');
+    splits = strsplit(T.name{1}, '_');
+    T.ID = string(splits{9});
+    T.Condition = string([splits{5}, '_', splits{6}, '_', splits{7}, '_', splits{8}]);
+    T.Set = string(splits{2});
+    T.Length = string(splits{3});
+    all_features = [all_features; T(:, [5:8, 2:4])];
+end
+
+% make certain columns categorical
+all_features.ID = categorical(all_features.ID);
+all_features.Condition = categorical(all_features.Condition);
+all_features.Set = categorical(all_features.Set);
+all_features.Length = double(all_features.Length);
+
+% Save Table as csv File
+FeatureFilename = strcat(dir_Log, 'MMSE', '/All_Features.csv');
+writetable(all_features, FeatureFilename);
+
+% exclude rows with NaN or Inf
+mask = all(isfinite(all_features{:, 5:end}), 2);
+all_features_clean = all_features(mask, :);
+
+fprintf("%d vector files removed due to NaN or Inf\n", height(all_features) - height(all_features_clean));
+
+summary(all_features_clean)
+
+% Plotting
+% Plotting
+conditions = categories(all_features_clean.Condition);
+sets = categories(all_features_clean.Set);
+Features = ["AUC", "Max-Slope", "Avg-Entropy"];
+
+for i_feat = 1:numel(Features)
+    figure(i_feat)
+
+    % Sammle alle Daten für die Feature-Spalte
+    data = [];
+    group_labels = {};
+    plotidx = 1;
+
+    for i_row = 1:numel(conditions)
+        % Pro Bedingung (Condition)
+        condition = conditions{i_row};
+        subplot(3, 2, plotidx);
+        hold on
+        
+        % Sammle die Daten für alle Sets innerhalb dieser Condition
+        data_condition = [];
+        group_labels_condition = {};
+        
+        for i_col = 1:numel(sets)
+           
+            % Get subset of data
+            subset = all_features_clean(all_features_clean.Condition == condition & ...
+                all_features_clean.Set == sets{i_col}, :);
+            
+            if ~isempty(subset)
+                col_data = table2array(subset(:,i_feat+4));
+                n = height(subset);
+                data_condition = [data_condition; col_data];
+                
+                % Label für jede Beobachtung: Set-Name
+                group_label = repmat({char(sets{i_col})}, n, 1);
+                group_labels_condition = [group_labels_condition; group_label];
+            end
+        end
+        
+        % Jetzt den Boxplot für alle Sets innerhalb dieser Condition zeichnen
+        if ~isempty(data_condition)
+            boxplot(data_condition, group_labels_condition)
+        end
+        
+        % Titel setzen
+        title_str = strrep(char(condition), '_', ' ');
+        title(sprintf("%s", title_str))
+        xlabel('Channel Set')
+        ylabel(Features(i_feat))
+        grid on
+        
+        hold off
+        plotidx = plotidx + 1;
+    end
+end
