@@ -1,47 +1,14 @@
 %% Quality Assessment
 
-dir_Root = "E:/Complexity/";
-dir_Log = "E:/Complexity/Data/Log/";
-
-%% Channel Difference between Dreszer et al. and us
-
-UJ = load("C:\Users\Christoph Frühlinger\Downloads\UJ.mat");
-original = UJ.UJ(1);
-clear UJ
-
-eeglab nogui
-EEG = pop_loadset('filename','first_run_eyes_open_sub-AA06WI11_task-Resting_run-1_eeg.set', ...
-    'filepath','C:\\Users\\Christoph Frühlinger\\Nextcloud\\PhD\\Forschung\\Complexity\\Data\\Preprocessed_updated\\');
-
-chan_diff1_idx = ~ismember(upper({original.chanlocs.labels}), upper({EEG.chanlocs.labels}));
-chan_diff1 = {original.chanlocs(chan_diff1_idx).labels};
-disp('We miss channels:')
-fprintf('%s\n', chan_diff1{:})
-
-chan_diff2_idx = ~ismember(upper({EEG.chanlocs.labels}), upper({original.chanlocs.labels}));
-chan_diff2 = {EEG.chanlocs(chan_diff2_idx).labels};
-disp('We have extra channels:')
-fprintf('%s\n', chan_diff2{:})
-
-%% MMSE Difference between old and updated Preproc Pipeline
-
-% old = readmatrix('..\..\Data\MMSEData\MMSE_C_26_seconds_first_run_eyes_open_sub-AA06WI11_task-Resting_run-1_eeg.set.csv');
-% old = old(1,2:end);
-% 
-% new = readmatrix('..\..\Data\MMSEData_updated\MMSE_C_26_seconds_first_run_eyes_open_sub-AA06WI11_task-Resting_run-1_eeg.set.csv');
-% new = new(1,2:end);
-% 
-% figure()
-% plot(old)
-% hold on
-% plot(new)
-% hold off
-% legend(["old", "new"]);
+dir_Root    = "E:/Complexity/";
+dir_Log     = "E:/Complexity/Data/Log/";
+Preproc_Log = fullfile(dir_Log, 'Preproc');
 
 %% Check Error-Files
+% Do you also want to save the errors as a file? (0|1)
+save_errors = 1;
 
 % List of Error Files
-Preproc_Log = "E:\Complexity\Data\Log\Preproc";
 error_files = dir(fullfile(Preproc_Log, 'Error_PreProc_*.txt'));
 
 % empty string array for messages
@@ -71,9 +38,6 @@ counts = accumarray(idx, 1);
 % Sort errors
 [sorted_counts, sort_idx] = sort(counts, 'descend');
 sorted_errors = unique_errors(sort_idx);
-
-% Do you also want to save the errors as a file? (0|1)
-save_errors = 1;
 
 % Print our errors in command window
 fprintf('Error Messages:\n');
@@ -106,14 +70,13 @@ end
 %% Descriptives after Snipping
 
 % Set path and load files
-log_path = fullfile(dir_Log, 'Preproc');
-log_files = dir(fullfile(log_path, 'Log_*.csv'));
+log_files = dir(fullfile(Preproc_Log, 'Log_*.csv'));
 
 % Initialize empty table
 all_logs = table();
 
 for i = 1:length(log_files)
-    file = fullfile(log_path, log_files(i).name);
+    file = fullfile(Preproc_Log, log_files(i).name);
     T = readtable(file);
     all_logs = [all_logs; T];
 end
@@ -122,8 +85,11 @@ end
 all_logs.Properties.VariableNames{'FileName'} = 'ID';
 splits = split(string(all_logs.ID), '_');
 all_logs.ID = splits(:, 1);
-
 all_logs.Condition = string(all_logs.Condition);
+
+% make certain columns categorical
+all_logs.ID = categorical(all_logs.ID);
+all_logs.Condition = categorical(all_logs.Condition);
 
 % Save Table as csv File
 LogFilename = strcat(Preproc_Log, '\All_Logs.csv');
@@ -154,6 +120,7 @@ summary(all_logs)
 summary(epoch_40s)
 summary(epoch_40s_complete)
 
+% Plot Distributions
 figure()
 subplot(2,3,1)
 boxplot(all_logs.BadICs)
@@ -210,14 +177,17 @@ for i = 1:length(subdir)
 end
 
 %% Check Channel Order
+
 % Get epoched data
 data_path = "E:\Complexity\Data\Snipplet";
 files = dir(fullfile(data_path, '*.set'));
 
+% Initialize empty lists
 template_labels = [];
 mismatched_files = {};
 
 for i = 1:length(files)
+    % Load file
     filename = fullfile(files(i).folder, files(i).name);
     evalc("EEG = pop_loadset('filename', files(i).name, 'filepath', files(i).folder);");
 
@@ -239,6 +209,7 @@ for i = 1:length(files)
     end
 end
 
+% Print out Results
 if isempty(mismatched_files)
     disp('All Files are sorted equally.');
 else
@@ -368,27 +339,27 @@ fprintf("%d vector files removed due to NaN or Inf\n", height(all_features) - he
 
 summary(all_features_clean)
 
-% Plotting
-% Plotting
+% Plot each Feature in separate Figure
 conditions = categories(all_features_clean.Condition);
 sets = categories(all_features_clean.Set);
 Features = ["AUC", "Max-Slope", "Avg-Entropy"];
 
 for i_feat = 1:numel(Features)
+    
     figure(i_feat)
 
-    % Sammle alle Daten für die Feature-Spalte
+    % Initialize empty lists
     data = [];
     group_labels = {};
     plotidx = 1;
 
     for i_row = 1:numel(conditions)
-        % Pro Bedingung (Condition)
+        
         condition = conditions{i_row};
         subplot(3, 2, plotidx);
         hold on
         
-        % Sammle die Daten für alle Sets innerhalb dieser Condition
+        % Initialize empty lists per condition
         data_condition = [];
         group_labels_condition = {};
         
@@ -403,18 +374,17 @@ for i_feat = 1:numel(Features)
                 n = height(subset);
                 data_condition = [data_condition; col_data];
                 
-                % Label für jede Beobachtung: Set-Name
+                % get Labels
                 group_label = repmat({char(sets{i_col})}, n, 1);
                 group_labels_condition = [group_labels_condition; group_label];
             end
         end
         
-        % Jetzt den Boxplot für alle Sets innerhalb dieser Condition zeichnen
+        % Plot Boxplot
         if ~isempty(data_condition)
             boxplot(data_condition, group_labels_condition)
         end
-        
-        % Titel setzen
+                
         title_str = strrep(char(condition), '_', ' ');
         title(sprintf("%s", title_str))
         xlabel('Channel Set')
