@@ -48,7 +48,7 @@ if ~ismember('Adjust', {PLUGINLIST.plugin})
 end
 
 fprintf("Let's get started\n")
-fprintf(['Alright, all Plugin are available.\nYour folder settings:\n\n' ...
+fprintf(['All Plugin are available.\nYour folder settings:\n\n' ...
     'Root-Folder: %s\nRaw-Folder: %s\nLog-Folder: %s\nOverwrite: %d\n'], ...
     dir_Root, dir_Raw, dir_Log, Overwrite)
 
@@ -67,3 +67,5 @@ MMSE_silent(dir_Root, dir_Log, Overwrite)
 
 % MMSE Feature Extraction
 MMSE_features(dir_Root, dir_Log, Overwrite)
+
+fprintf('****\nDone\n****\n')
