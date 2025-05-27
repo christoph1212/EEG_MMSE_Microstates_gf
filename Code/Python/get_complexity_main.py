@@ -33,14 +33,21 @@ cwd = Path.cwd()
 dir_root = cwd.parent.parent
 dir_data = dir_root / "Data"
 dir_preprocessed = dir_data / "Snipplet"  # Epoched data
+dir_microstates = dir_data / "Microstates"
+
+if not dir_microstates.exists():
+    dir_microstates.mkdir(parents=True, exist_ok=True)
 
 # read names of files
 files = list(dir_preprocessed.rglob("*.set"))
+
+print(f"Loading {len(files)} files for microstate analysis\n")
 
 # initialize lists
 IDs_subjects = []
 runs = []
 conditions = []
+epoch_lengths = []
 data_all = []
 
 # loop over all subjects (filenames saved in filesEC)
@@ -50,14 +57,17 @@ for f in files:
     fname = f.name
 
     # store info in lists
-    ID = fname.split("_")[4]
+    ID = fname.split("_")[6]
     IDs_subjects.append(ID)
 
-    run = fname.split("_")[6]
+    run = fname.split("_")[8]
     runs.append(run)
 
-    condition = [fname.split("_")[2] + " " + fname.split("_")[3]]
+    condition = [fname.split("_")[4] + " " + fname.split("_")[5]]
     conditions.append(condition)
+
+    epoch_length = fname.split("_")[0]
+    epoch_lengths.append(epoch_length)
 
     # read file
     preproc = mne.io.read_raw_eeglab(dir_preprocessed / fname, preload=True)
@@ -65,6 +75,8 @@ for f in files:
     # remap non-eeg channels
     data = preproc.get_data()
     data_all.append(data)
+
+epoch_lengths = np.array(epoch_lengths).astype(int).tolist()
 
 # %% Compute microstate measures
 
@@ -115,7 +127,7 @@ get group specific microstates
 maps_group, segmentation = microstates_group.segment(
     maps_subjects_all_arr, n_states=5, n_inits=1000, thresh=1e-10, max_iter=10000
 )
-np.save("microstates_group.npy", maps_group)  # plot group microstates
+np.save(dir_microstates / "microstates_group.npy", maps_group)  # plot group microstates
 
 # plot maps_group
 microstates_group.plot_maps(maps_group, preproc.info)
@@ -202,8 +214,8 @@ for st in states_single_peaks_all:
 
 # frequency of microstates
 frequency = []
-for st, e in zip(n_single_occurences_states_all, epochs_rejected_all):
-    freq = st / (150 - e) / 2  # occurences divided by 2*epochs (1 epoch = 2 s)
+for st, e in zip(n_single_occurences_states_all, epoch_lengths):
+    freq = st / e
     frequency.append(freq)
 
 # lifespan
@@ -368,13 +380,17 @@ table_posthoc = pd.DataFrame(
     variables, columns=["similarity_subject_micosates", "gev_subject", "gev_group"]
 )
 
-df_complexity = pd.concat(
+df_microstate = pd.concat(
     [
+        pd.DataFrame(IDs_subjects, columns=["ID"]),
+        pd.DataFrame(runs, columns=["run"]),
+        pd.DataFrame(conditions, columns=["condition"]),
+        pd.DataFrame(epoch_lengths, columns=["epoch_length"]),
         table_n_gfp_peaks,
         table_coverage,
         table_lifespan,
         table_lifespan_peaks,
-        # table_frequence,
+        table_frequence,
         table_transmat,
         table_transmat_peak,
         table_posthoc,
@@ -382,12 +398,15 @@ df_complexity = pd.concat(
     axis=1,
 )
 
-# df_complexity.insert(0, "epochs_rejected", np.array(epochs_rejected_all))
-# df_complexity.insert(0, "IDs_subjects_neuro", np.array(IDs_subjects_neuro))
 
-df_complexity.to_pickle("./df_complexity.pkl")
+df_microstate.to_pickle(dir_microstates / "df_microstate.pkl")
 
-with open("channel_names", "wb") as fp:
+with open(dir_microstates / "channel_names", "wb") as fp:
     pickle.dump(channel_names, fp)
 
-np.savetxt("channel_names.csv", np.array(channel_names), delimiter=",", fmt="%s")
+np.savetxt(
+    dir_microstates / "channel_names.csv",
+    np.array(channel_names),
+    delimiter=",",
+    fmt="%s",
+)
