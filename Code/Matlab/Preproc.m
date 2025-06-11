@@ -274,12 +274,11 @@ try
 
             % Identify bad components with ADJUST 
             % (adapted ADJUST.m file - make sure to use the file from the Github Repository)
-            evalc("[badIC , ~] = ADJUST(EEG)");
+            evalc("[badIC , info] = ADJUST(EEG)");
 
             % Remove bad Components
-            EEG.cc.clean_ICA_Mask = ones(size(EEG.icaact,1), 1);
+            EEG.cc.ICA_info = info;
             evalc("EEG = pop_subcomp(EEG, badIC, 0);");
-            EEG.cc.clean_ICA_Mask(badIC) = 0;
             
             %% Cleaning: Interpolate bad Channels
             evalc("EEG = pop_select( EEG, 'chantype','EEG');");
@@ -312,8 +311,8 @@ try
                 EEG.cc.d0201__remBad.removed_chans = 0;
             end
 
-            Log_table = table({Raw_Files(i_Sub).name(1:end-4)}, {Cond_FileName}, length(EEG.chanlocs), length(badIC), length(EEG.cc.d0201__remBad.removed_chans), ...
-                'VariableNames', {'File Name', 'Condition', 'Number Channels', 'BadICs', 'Interpolated Channels'});
+            Log_table = table({Raw_Files(i_Sub).name(1:end-4)}, {Cond_FileName}, length(EEG.chanlocs), length(badIC), length(EEG.cc.ICA_info.horiz), length(EEG.cc.ICA_info.vert), length(EEG.cc.ICA_info.blink), length(EEG.cc.ICA_info.disc), length(EEG.cc.d0201__remBad.removed_chans), ...
+                'VariableNames', {'File Name', 'Condition', 'Number Channels', 'BadICs', 'IC_horiz', 'IC_vert', 'IC_blink', 'IC_disc', 'Interpolated Channels'});
 
             ID = strsplit(Raw_Files(i_Sub).name, '_');
             ID = ID{1};

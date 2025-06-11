@@ -99,9 +99,7 @@
 % function [art, horiz, vert, blink, disc,...
 %         soglia_DV, diff_var, soglia_K, meanK, soglia_SED, SED, soglia_SAD, SAD, ...
 %         soglia_GDSF, GDSF, soglia_V, nuovaV, soglia_D, maxdin]=ADJUST (EEG,out)
-function [art, horiz, vert, blink, disc,...
-    soglia_DV, diff_var, soglia_K, med2_K, meanK, soglia_SED, med2_SED, SED, soglia_SAD, med2_SAD, SAD, ...
-    soglia_GDSF, med2_GDSF, GDSF, soglia_V, med2_V, nuovaV, soglia_D, maxdin]=ADJUST (EEG)
+function [art, info]=ADJUST (EEG)
 
 
 %% Settings
@@ -155,7 +153,7 @@ else
     % Remove Boundaries
     Boundaries = find(strcmp({EEG.event.type}, 'boundary')); % addded KP 09/02/2022
     [EEG.event(Boundaries).type] = deal('x'); % addded KP 09/02/2022
-    EEG_epoched = eeg_regepochs(EEG, 5) % addded KP 06/05/2021
+    EEG_epoched = eeg_regepochs(EEG, 5); % addded KP 06/05/2021
     num_epoch=size(EEG_epoched.data,3); % addded KP 06/05/2021
     
 end
