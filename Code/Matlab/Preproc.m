@@ -84,7 +84,7 @@ function run_silent(Overwrite, Raw_Files, dir_Preproc, dir_Log, SplitStruct, Fil
 try
 
     fprintf('Standardizing File: %s; Select Channels, Reference, Sampling Rate. \n', Raw_Files(i_Sub).name);
-    
+
     % Initate variables, and load EEG lab File
     EEG = struct([]);
     temp_out = [];
@@ -274,10 +274,10 @@ try
 
             % Identify bad components with ADJUST 
             % (adapted ADJUST.m file - make sure to use the file from the Github Repository)
-            evalc("[badIC , info] = ADJUST(EEG)");
+            evalc("[badIC , ICinfo] = ADJUST(EEG)");
 
             % Remove bad Components
-            EEG.cc.ICA_info = info;
+            EEG.cc.ICA_info = ICinfo;
             evalc("EEG = pop_subcomp(EEG, badIC, 0);");
             
             %% Cleaning: Interpolate bad Channels
@@ -326,7 +326,7 @@ try
                 ErrorMessage = strcat(ErrorMessage, "//", e.stack(ierrors).name, ", Line: ",  num2str(e.stack(ierrors).line));
             end
             
-            fprintf('"Error in File: %s; %s.\n', FileName, ErrorMessage);
+            fprintf('***Error in File: %s; %s.\n', FileName, ErrorMessage);
             
             ErrorFile = strcat(dir_Log, 'Error_PreProc', '_', strrep(FileName, '.set', '.txt' ));
             fid1 = fopen( ErrorFile, 'wt' );
