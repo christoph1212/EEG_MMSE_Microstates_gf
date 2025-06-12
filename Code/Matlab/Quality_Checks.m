@@ -256,6 +256,58 @@ fprintf("%d vector files removed due to NaN or Inf\n", height(all_vectors) - hei
 
 summary(all_vectors_clean)
 
+% Check Rank Correlation between conditions
+
+% define conditions
+cond1 = 'first_run_eyes_open';
+cond2 = 'first_run_eyes_closed';
+
+% define set
+targetSet = 'C';
+
+% get MMSE data
+mmseVars = startsWith(all_vectors_clean.Properties.VariableNames, 'mmse_');
+mmseCols = all_vectors_clean.Properties.VariableNames(mmseVars);
+
+% Filter for condition and set
+T1 = all_vectors_clean(all_vectors_clean.Condition == cond1 & all_vectors_clean.Set == targetSet, :);
+T2 = all_vectors_clean(all_vectors_clean.Condition == cond2 & all_vectors_clean.Set == targetSet, :);
+
+% get common IDs and filter
+commonIDs = intersect(T1.ID, T2.ID);
+
+T1 = T1(ismember(T1.ID, commonIDs), :);
+T2 = T2(ismember(T2.ID, commonIDs), :);
+
+% sort rows according to ID
+T1 = sortrows(T1, 'ID');
+T2 = sortrows(T2, 'ID');
+
+% get condition-specific MMSE data
+X1 = T1{:, mmseVars};  % Condition 1
+X2 = T2{:, mmseVars};  % Condition 2
+
+% Überprüfen
+assert(isequal(T1.ID, T2.ID), 'IDs stimmen nicht überein!');
+
+% calculate Spearman correlation and save coefficient and p-value
+numMMSE = size(X1, 2);
+rhoValues = zeros(1, numMMSE);
+pValues  = zeros(1, numMMSE);
+
+for i = 1:numMMSE
+    [r, p] = corr(X1(:, i), X2(:, i), 'Type', 'Spearman');
+    rhoValues(i) = r;
+    pValues(i)  = p;
+end
+
+% save in table and print
+resultTable = table(mmseCols', rhoValues', pValues', ...
+    'VariableNames', {'MMSE_Feature', 'SpearmanRho', 'pValue'});
+
+disp(resultTable);
+
+
 % Plotting
 conditions = categories(all_vectors.Condition);
 sets = categories(all_vectors.Set);
