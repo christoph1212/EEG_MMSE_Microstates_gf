@@ -258,55 +258,77 @@ summary(all_vectors_clean)
 
 % Check Rank Correlation between conditions
 
-% define conditions
-cond1 = 'first_run_eyes_open';
-cond2 = 'first_run_eyes_closed';
+% define conditions and sets
+cond1 = "first_run_eyes_open";
 
-% define set
-targetSet = 'C';
+otherconds = ["first_run_eyes_closed", "second_run_eyes_open", "third_run_eyes_open"];
+sets = ["C", "F", "FL", "FR", "ML", "MR", "P", "PL", "PR"];
 
-% get MMSE data
-mmseVars = startsWith(all_vectors_clean.Properties.VariableNames, 'mmse_');
-mmseCols = all_vectors_clean.Properties.VariableNames(mmseVars);
-
-% Filter for condition and set
-T1 = all_vectors_clean(all_vectors_clean.Condition == cond1 & all_vectors_clean.Set == targetSet, :);
-T2 = all_vectors_clean(all_vectors_clean.Condition == cond2 & all_vectors_clean.Set == targetSet, :);
-
-% get common IDs and filter
-commonIDs = intersect(T1.ID, T2.ID);
-
-T1 = T1(ismember(T1.ID, commonIDs), :);
-T2 = T2(ismember(T2.ID, commonIDs), :);
-
-% sort rows according to ID
-T1 = sortrows(T1, 'ID');
-T2 = sortrows(T2, 'ID');
-
-% get condition-specific MMSE data
-X1 = T1{:, mmseVars};  % Condition 1
-X2 = T2{:, mmseVars};  % Condition 2
-
-% Überprüfen
-assert(isequal(T1.ID, T2.ID), 'IDs stimmen nicht überein!');
-
-% calculate Spearman correlation and save coefficient and p-value
-numMMSE = size(X1, 2);
-rhoValues = zeros(1, numMMSE);
-pValues  = zeros(1, numMMSE);
-
-for i = 1:numMMSE
-    [r, p] = corr(X1(:, i), X2(:, i), 'Type', 'Spearman');
-    rhoValues(i) = r;
-    pValues(i)  = p;
+% loop over sets and condition to compare
+for i_cond = 1:numel(otherconds)
+    for i_set = 1:numel(sets)
+        cond2 = otherconds(i_cond);
+        targetSet = sets(i_set);
+        
+        % get MMSE data
+        mmseVars = startsWith(all_vectors_clean.Properties.VariableNames, 'mmse_');
+        mmseCols = all_vectors_clean.Properties.VariableNames(mmseVars);
+        
+        % Filter for condition and set
+        T1 = all_vectors_clean(all_vectors_clean.Condition == cond1 & all_vectors_clean.Set == targetSet, :);
+        T2 = all_vectors_clean(all_vectors_clean.Condition == cond2 & all_vectors_clean.Set == targetSet, :);
+        
+        % get common IDs and filter
+        commonIDs = intersect(T1.ID, T2.ID);
+        
+        T1 = T1(ismember(T1.ID, commonIDs), :);
+        T2 = T2(ismember(T2.ID, commonIDs), :);
+        
+        % sort rows according to ID
+        T1 = sortrows(T1, 'ID');
+        T2 = sortrows(T2, 'ID');
+        
+        % get condition-specific MMSE data
+        X1 = T1{:, mmseVars};  % Condition 1
+        X2 = T2{:, mmseVars};  % Condition 2
+        
+        % Überprüfen
+        assert(isequal(T1.ID, T2.ID), 'IDs stimmen nicht überein!');
+        
+        % calculate Spearman correlation and save coefficient and p-value
+        numMMSE = size(X1, 2);
+        rhoValues = zeros(1, numMMSE);
+        pValues  = zeros(1, numMMSE);
+        
+        for i = 1:numMMSE
+            [r, p] = corr(X1(:, i), X2(:, i), 'Type', 'Spearman');
+            rhoValues(i) = r;
+            pValues(i)  = p;
+        end
+        
+        % save in table and print
+        resultTable = table(repelem(targetSet, numMMSE)', repelem(cond1, numMMSE)', repelem(cond2, numMMSE)', mmseCols', rhoValues', pValues', ...
+            'VariableNames', {'Set', 'Condition1', 'Condition2', 'MMSE_Feature', 'SpearmanRho', 'pValue'});
+        
+        disp(resultTable);
+        
+        % Scatterplots
+        mmseNames = all_vectors_clean.Properties.VariableNames(mmseVars);
+        figure('Name',sprintf('%s, %s', cond2, targetSet));
+        for i = 1:numMMSE
+            x = T1{:, mmseNames{i}};
+            y = T2{:, mmseNames{i}};
+            rho = corr(x, y, 'Type', 'Spearman');
+            subplot(3, 4, i);  % 3x4 Layout für 12 Plots
+            scatter(x, y, 30, 'filled');
+            lsline;
+            title(sprintf('%s\nρ = %.2f', mmseNames{i}, rho), 'Interpreter', 'none');
+            xlabel(cond1, 'Interpreter', 'none');
+            ylabel(cond2, 'Interpreter', 'none');
+        end
+        sgtitle(sprintf('Retest-Reliability for each MMSE Vector (Set %s)', targetSet));
+    end
 end
-
-% save in table and print
-resultTable = table(mmseCols', rhoValues', pValues', ...
-    'VariableNames', {'MMSE_Feature', 'SpearmanRho', 'pValue'});
-
-disp(resultTable);
-
 
 % Plotting
 conditions = categories(all_vectors.Condition);
