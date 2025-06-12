@@ -56,6 +56,11 @@ for f in files:
     # get filename
     fname = f.name
 
+    epoch_length = fname.split("_")[0]
+    if epoch_length == "0":
+        continue
+    epoch_lengths.append(epoch_length)
+
     # store info in lists
     ID = fname.split("_")[6]
     IDs_subjects.append(ID)
@@ -66,9 +71,6 @@ for f in files:
     condition = [fname.split("_")[4] + " " + fname.split("_")[5]]
     conditions.append(condition)
 
-    epoch_length = fname.split("_")[0]
-    epoch_lengths.append(epoch_length)
-
     # read file
     preproc = mne.io.read_raw_eeglab(dir_preprocessed / fname, preload=True)
 
@@ -78,7 +80,7 @@ for f in files:
 
 epoch_lengths = np.array(epoch_lengths).astype(int).tolist()
 
-# %% Compute microstate measures
+# %% Compute microstates
 
 # initialize lists
 gfp_peaks_all = []
@@ -166,6 +168,8 @@ for data, gfp_peaks_s in zip(data_all, gfp_peaks_all):
     corr_subj_abs = abs(corr_subj)
     map_sequence_peaks = np.argmax(corr_subj_abs, axis=0)
     map_sequence_peaks_all.append(map_sequence_peaks)
+
+# %% Compute microstate measures
 
 # compute coverage time per microstate all time points
 n_total_occurences_states_all = []
