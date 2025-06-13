@@ -45,7 +45,6 @@ print(f"Loading {len(files)} files for microstate analysis\n")
 
 # initialize lists
 IDs_subjects = []
-runs = []
 conditions = []
 epoch_lengths = []
 data_all = []
@@ -65,10 +64,15 @@ for f in files:
     ID = fname.split("_")[6]
     IDs_subjects.append(ID)
 
-    run = fname.split("_")[8]
-    runs.append(run)
-
-    condition = [fname.split("_")[4] + " " + fname.split("_")[5]]
+    condition = [
+        fname.split("_")[2]
+        + "_"
+        + fname.split("_")[3]
+        + "_"
+        + fname.split("_")[4]
+        + "_"
+        + fname.split("_")[5]
+    ]
     conditions.append(condition)
 
     # read file
@@ -387,9 +391,8 @@ table_posthoc = pd.DataFrame(
 df_microstate = pd.concat(
     [
         pd.DataFrame(IDs_subjects, columns=["ID"]),
-        pd.DataFrame(runs, columns=["run"]),
-        pd.DataFrame(conditions, columns=["condition"]),
-        pd.DataFrame(epoch_lengths, columns=["epoch_length"]),
+        pd.DataFrame(conditions, columns=["Condition"]),
+        pd.DataFrame(epoch_lengths, columns=["Length"]),
         table_n_gfp_peaks,
         table_coverage,
         table_lifespan,
