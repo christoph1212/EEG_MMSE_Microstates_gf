@@ -68,4 +68,10 @@ MMSE_silent(dir_Root, dir_Log, Overwrite)
 % MMSE Feature Extraction
 MMSE_features(dir_Root, dir_Log, Overwrite)
 
+% Calculate Difference Scores
+MMSE_feature_diff(dir_Root, dir_Log)
+
+%% Combine MMSE Features and Vectors and add demographics and gf
+combine_data(dir_Root, dir_Log)
+
 fprintf('****\nDone\n****\n')

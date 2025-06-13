@@ -69,31 +69,38 @@ end
 
 %% Descriptives after Snipping
 
-% Set path and load files
-log_files = dir(fullfile(Preproc_Log, 'Log_*.csv'));
+LogFilename = strcat(Preproc_Log, '\All_Logs.csv');
 
-% Initialize empty table
-all_logs = table();
+if isfile(LogFilename)
 
-for i = 1:length(log_files)
-    file = fullfile(Preproc_Log, log_files(i).name);
-    T = readtable(file);
-    all_logs = [all_logs; T];
+    all_logs = readtable(LogFilename);
+
+else
+    % Set path and load files
+    log_files = dir(fullfile(Preproc_Log, 'Log_*.csv'));
+    
+    % Initialize empty table
+    all_logs = table();
+    
+    for i = 1:length(log_files)
+        file = fullfile(Preproc_Log, log_files(i).name);
+        T = readtable(file);
+        all_logs = [all_logs; T];
+    end
+    
+    % Adapt Table
+    all_logs.Properties.VariableNames{'FileName'} = 'ID';
+    splits = split(string(all_logs.ID), '_');
+    all_logs.ID = splits(:, 1);
+    all_logs.Condition = string(all_logs.Condition);    
+    
+    % Save Table as csv File
+    writetable(all_logs, LogFilename);
 end
-
-% Adapt Table
-all_logs.Properties.VariableNames{'FileName'} = 'ID';
-splits = split(string(all_logs.ID), '_');
-all_logs.ID = splits(:, 1);
-all_logs.Condition = string(all_logs.Condition);
 
 % make certain columns categorical
 all_logs.ID = categorical(all_logs.ID);
 all_logs.Condition = categorical(all_logs.Condition);
-
-% Save Table as csv File
-LogFilename = strcat(Preproc_Log, '\All_Logs.csv');
-writetable(all_logs, LogFilename);
 
 % Check complete Participants
 [unique_files, ~, idx] = unique(all_logs.ID);
@@ -219,23 +226,34 @@ end
 
 %% MMSE Vectors
 
-% Set path and load files
-vector_path = strcat(dir_Root, "Data/MMSEData/");
-vector_files = dir(fullfile(vector_path, 'MMSE_*.csv'));
+VectorFilename = strcat(dir_Log, 'MMSE', '/All_Vectors.csv');
 
-% Initialize empty table
-all_vectors = table();
+if isfile(VectorFilename)
 
-% Loop through vector files
-for i = 1:length(vector_files)
-    file = fullfile(vector_path, vector_files(i).name);
-    T = readtable(file);
-    splits = strsplit(T.name{1}, '_');
-    T.ID = string(splits{9});
-    T.Condition = string([splits{5}, '_', splits{6}, '_', splits{7}, '_', splits{8}]);
-    T.Set = string(splits{2});
-    T.Length = string(splits{3});
-    all_vectors = [all_vectors; T(:, [14:17, 2:13])];
+    all_vectors = readtable(VectorFilename);
+
+else
+    % Set path and load files
+    vector_path = strcat(dir_Root, "Data/MMSEData/");
+    vector_files = dir(fullfile(vector_path, 'MMSE_*.csv'));
+    
+    % Initialize empty table
+    all_vectors = table();
+    
+    % Loop through vector files
+    for i = 1:length(vector_files)
+        file = fullfile(vector_path, vector_files(i).name);
+        T = readtable(file);
+        splits = strsplit(T.name{1}, '_');
+        T.ID = string(splits{9});
+        T.Condition = string([splits{5}, '_', splits{6}, '_', splits{7}, '_', splits{8}]);
+        T.Set = string(splits{2});
+        T.Length = string(splits{3});
+        all_vectors = [all_vectors; T(:, [14:17, 2:13])];
+    end    
+
+    % Save Table as csv File
+    writetable(all_vectors, VectorFilename);
 end
 
 % make certain columns categorical
@@ -243,10 +261,6 @@ all_vectors.ID = categorical(all_vectors.ID);
 all_vectors.Condition = categorical(all_vectors.Condition);
 all_vectors.Set = categorical(all_vectors.Set);
 all_vectors.Length = double(all_vectors.Length);
-
-% Save Table as csv File
-VectorFilename = strcat(dir_Log, 'MMSE', '/All_Vectors.csv');
-writetable(all_vectors, VectorFilename);
 
 % exclude rows with NaN or Inf
 mask = all(isfinite(all_vectors{:, 5:end}), 2);
@@ -292,8 +306,7 @@ for i_cond = 1:numel(otherconds)
         X1 = T1{:, mmseVars};  % Condition 1
         X2 = T2{:, mmseVars};  % Condition 2
         
-        % Überprüfen
-        assert(isequal(T1.ID, T2.ID), 'IDs stimmen nicht überein!');
+        assert(isequal(T1.ID, T2.ID), 'IDs do not match!');
         
         % calculate Spearman correlation and save coefficient and p-value
         numMMSE = size(X1, 2);
@@ -308,7 +321,7 @@ for i_cond = 1:numel(otherconds)
         
         % save in table and print
         resultTable = table(repelem(targetSet, numMMSE)', repelem(cond1, numMMSE)', repelem(cond2, numMMSE)', mmseCols', rhoValues', pValues', ...
-            'VariableNames', {'Set', 'Condition1', 'Condition2', 'MMSE_Feature', 'SpearmanRho', 'pValue'});
+            'VariableNames', {'Set', 'Condition1', 'Condition2', 'MMSE_Vector', 'SpearmanRho', 'pValue'});
         
         disp(resultTable);
         
@@ -319,7 +332,7 @@ for i_cond = 1:numel(otherconds)
             x = T1{:, mmseNames{i}};
             y = T2{:, mmseNames{i}};
             rho = corr(x, y, 'Type', 'Spearman');
-            subplot(3, 4, i);  % 3x4 Layout für 12 Plots
+            subplot(3, 4, i);
             scatter(x, y, 30, 'filled');
             lsline;
             title(sprintf('%s\nρ = %.2f', mmseNames{i}, rho), 'Interpreter', 'none');
@@ -375,24 +388,36 @@ end
 
 %% MMSE Features
 
-% Set path and load files
-feature_path = strcat(dir_Root, "Data/MMSEFeatures/");
-feature_files = dir(fullfile(feature_path, 'features_*.csv'));
+FeatureFilename = strcat(dir_Log, 'MMSE', '/All_Features.csv');
 
-% Initialize empty table
-all_features = table();
+if isfile(FeatureFilename)
 
-% Loop through vector files
-for i = 1:length(feature_files)
-    fprintf('%d/%d\n', i, length(feature_files))
-    file = fullfile(feature_path, feature_files(i).name);
-    T = readtable(file, "Delimiter", ';');
-    splits = strsplit(T.name{1}, '_');
-    T.ID = string(splits{9});
-    T.Condition = string([splits{5}, '_', splits{6}, '_', splits{7}, '_', splits{8}]);
-    T.Set = string(splits{2});
-    T.Length = string(splits{3});
-    all_features = [all_features; T(:, [5:8, 2:4])];
+    all_features = readtable(FeatureFilename);
+
+else
+
+    % Set path and load files
+    feature_path = strcat(dir_Root, "Data/MMSEFeatures/");
+    feature_files = dir(fullfile(feature_path, 'features_*.csv'));
+    
+    % Initialize empty table
+    all_features = table();
+    
+    % Loop through vector files
+    for i = 1:length(feature_files)
+        fprintf('%d/%d\n', i, length(feature_files))
+        file = fullfile(feature_path, feature_files(i).name);
+        T = readtable(file, "Delimiter", ';');
+        splits = strsplit(T.name{1}, '_');
+        T.ID = string(splits{9});
+        T.Condition = string([splits{5}, '_', splits{6}, '_', splits{7}, '_', splits{8}]);
+        T.Set = string(splits{2});
+        T.Length = string(splits{3});
+        all_features = [all_features; T(:, [5:8, 2:4])];
+    end
+        
+    % Save Table as csv File
+    writetable(all_features, FeatureFilename);
 end
 
 % make certain columns categorical
@@ -401,10 +426,6 @@ all_features.Condition = categorical(all_features.Condition);
 all_features.Set = categorical(all_features.Set);
 all_features.Length = double(all_features.Length);
 
-% Save Table as csv File
-FeatureFilename = strcat(dir_Log, 'MMSE', '/All_Features.csv');
-writetable(all_features, FeatureFilename);
-
 % exclude rows with NaN or Inf
 mask = all(isfinite(all_features{:, 5:end}), 2);
 all_features_clean = all_features(mask, :);
@@ -412,6 +433,79 @@ all_features_clean = all_features(mask, :);
 fprintf("%d vector files removed due to NaN or Inf\n", height(all_features) - height(all_features_clean));
 
 summary(all_features_clean)
+
+% Check Rank Correlation between conditions
+
+% define conditions and sets
+cond1 = "first_run_eyes_open";
+
+otherconds = ["first_run_eyes_closed", "second_run_eyes_open", "third_run_eyes_open"];
+sets = ["C", "F", "FL", "FR", "ML", "MR", "P", "PL", "PR"];
+
+% loop over sets and condition to compare
+for i_cond = 1:numel(otherconds)
+    for i_set = 1:numel(sets)
+        cond2 = otherconds(i_cond);
+        targetSet = sets(i_set);
+        
+        % get Feature data
+        featVars = ["auc", "max_slope", "avg_entropy"];
+        featCols = all_features_clean.Properties.VariableNames(featVars);
+        
+        % Filter for condition and set
+        T1 = all_features_clean(all_features_clean.Condition == cond1 & all_features_clean.Set == targetSet, :);
+        T2 = all_features_clean(all_features_clean.Condition == cond2 & all_features_clean.Set == targetSet, :);
+        
+        % get common IDs and filter
+        commonIDs = intersect(T1.ID, T2.ID);
+        
+        T1 = T1(ismember(T1.ID, commonIDs), :);
+        T2 = T2(ismember(T2.ID, commonIDs), :);
+        
+        % sort rows according to ID
+        T1 = sortrows(T1, 'ID');
+        T2 = sortrows(T2, 'ID');
+        
+        % get condition-specific MMSE data
+        X1 = T1{:, featVars};  % Condition 1
+        X2 = T2{:, featVars};  % Condition 2
+
+        assert(isequal(T1.ID, T2.ID), 'IDs do not match!');
+        
+        % calculate Spearman correlation and save coefficient and p-value
+        numfeat = size(X1, 2);
+        rhoValues = zeros(1, numfeat);
+        pValues  = zeros(1, numfeat);
+        
+        for i = 1:numfeat
+            [r, p] = corr(X1(:, i), X2(:, i), 'Type', 'Spearman');
+            rhoValues(i) = r;
+            pValues(i)  = p;
+        end
+        
+        % save in table and print
+        resultTable = table(repelem(targetSet, numfeat)', repelem(cond1, numfeat)', repelem(cond2, numfeat)', featCols', rhoValues', pValues', ...
+            'VariableNames', {'Set', 'Condition1', 'Condition2', 'MMSE_Feature', 'SpearmanRho', 'pValue'});
+        
+        disp(resultTable);
+        
+        % Scatterplots
+        featNames = all_features_clean.Properties.VariableNames(featVars);
+        figure('Name',sprintf('%s, %s', cond2, targetSet));
+        for i = 1:numfeat
+            x = T1{:, featNames{i}};
+            y = T2{:, featNames{i}};
+            rho = corr(x, y, 'Type', 'Spearman');
+            subplot(3, 1, i);
+            scatter(x, y, 30, 'filled');
+            lsline;
+            title(sprintf('%s\nρ = %.2f', featNames{i}, rho), 'Interpreter', 'none');
+            xlabel(cond1, 'Interpreter', 'none');
+            ylabel(cond2, 'Interpreter', 'none');
+        end
+        sgtitle(sprintf('Retest-Reliability for each MMSE Feature (Set %s)', targetSet));
+    end
+end
 
 % Plot each Feature in separate Figure
 conditions = categories(all_features_clean.Condition);
