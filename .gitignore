@@ -6,6 +6,8 @@ Data/**
 Code/Python/venv/
 Code/Python/__pycache__/
 
+Results/
+
 *.xlsx
 
 *.jpg
@@ -14,3 +16,4 @@ Code/Python/__pycache__/
 
 *.Rproj.user/
 .Rhistory
+.Rproj.user
