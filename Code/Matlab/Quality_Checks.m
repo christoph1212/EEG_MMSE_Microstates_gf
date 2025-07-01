@@ -129,32 +129,75 @@ summary(epoch_40s_complete)
 
 % Plot Distributions
 figure()
-subplot(2,3,1)
+subplot(3,3,1)
 boxplot(all_logs.BadICs)
 title_text = sprintf("Bad ICs\nMean = %.2f\nSD = %.2f", ...
     mean(all_logs.BadICs), std(all_logs.BadICs));
 title(title_text)
 
-subplot(2,3,2)
+subplot(3,3,2)
 boxplot(all_logs.InterpolatedChannels)
 title_text = sprintf("Interpolated Channels\nMean = %.2f\nSD = %.2f", ...
     mean(all_logs.InterpolatedChannels), std(all_logs.InterpolatedChannels));
 title(title_text)
 
-subplot(2,3,3)
+subplot(3,3,3)
 boxplot(all_logs.SnippletLength)
 title_text = sprintf("Epoch Length\nMean = %.2f\nSD = %.2f", ...
     mean(all_logs.SnippletLength), std(all_logs.SnippletLength));
 title(title_text)
 
-subplot(2,3,4)
+subplot(3,3,4)
 histogram(all_logs.BadICs)
+grid on
 
-subplot(2,3,5)
+subplot(3,3,5)
 histogram(all_logs.InterpolatedChannels)
+grid on
 
-subplot(2,3,6)
+subplot(3,3,6)
 histogram(all_logs.SnippletLength)
+grid on
+
+subplot(3,3,7)
+histogram(all_logs.IC_blink)
+title_text = sprintf("Blink ICs\nMean = %.2f\nSD = %.2f", ...
+    mean(all_logs.BadICs), std(all_logs.BadICs));
+title(title_text)
+grid on
+
+subplot(3,3,8)
+histogram(all_logs.IC_horiz) 
+hold on
+histogram(all_logs.IC_vert)
+title_text = sprintf("Horizontal and Vertical ICs\nMean = %.2f\nSD = %.2f", ...
+    mean(all_logs.InterpolatedChannels), std(all_logs.InterpolatedChannels));
+title(title_text)
+legend('horizontal', 'vertical')
+grid on
+
+subplot(3,3,9)
+histogram(all_logs.IC_disc)
+title_text = sprintf("Discontinuitiy ICs\nMean = %.2f\nSD = %.2f", ...
+    mean(all_logs.SnippletLength), std(all_logs.SnippletLength));
+title(title_text)
+grid on
+
+% Make subplots same size
+% Get axis handles
+ax = findall(gcf, 'Type', 'axes');
+set(ax, 'Units', 'Normalized'); 
+positions = cell2mat(get(ax, 'Position'));
+
+min_width = min(positions(:,3));
+min_height = min(positions(:,4));
+
+for i = 1:length(ax)
+    pos = get(ax(i), 'Position');
+    pos(3) = min_width;
+    pos(4) = min_height;
+    set(ax(i), 'Position', pos);
+end
 
 %% Check Raw File Folders
 
