@@ -16,6 +16,7 @@ https://doi.org/10.1523/eneuro.0345-22.2022
 
 # %% Imports
 import pickle
+import traceback
 from pathlib import Path
 
 import mne
@@ -34,9 +35,13 @@ dir_root = cwd.parent.parent
 dir_data = dir_root / "Data"
 dir_preprocessed = dir_data / "Snipplet"  # Epoched data
 dir_microstates = dir_data / "Microstates"
+dir_log = dir_data / "Log/Microstates"
 
 if not dir_microstates.exists():
     dir_microstates.mkdir(parents=True, exist_ok=True)
+
+if not dir_log.exists():
+    dir_log.mkdir(parents=True, exist_ok=True)
 
 # read names of files
 files = list(dir_preprocessed.rglob("*.set"))
@@ -56,7 +61,7 @@ for f in files:
     fname = f.name
 
     epoch_length = fname.split("_")[0]
-    if epoch_length == "0":
+    if epoch_length != "40":
         continue
     epoch_lengths.append(epoch_length)
 
@@ -83,330 +88,366 @@ for f in files:
     data_all.append(data)
 
 epoch_lengths = np.array(epoch_lengths).astype(int).tolist()
+conditions = np.array(conditions).flatten()
 
-# %% Compute microstates
+# Compute microstates
+for cond in list(set(conditions)):
+    try:
+        # select subset data
+        indices = np.where(conditions == cond)[0]
+        data_subset = [data_all[i] for i in indices]
 
-# initialize lists
-gfp_peaks_all = []
-n_gfp_peaks_all = []
-maps_subject_all = []
-for data in data_all:
+        # Initial checks
+        if len(data_subset) != len(np.array(IDs_subjects)[indices]):
+            raise ValueError(
+                "Mismatch between number of subjects and data subset length."
+            )
+        if any(np.array(epoch_lengths)[indices] != 40):
+            raise ValueError("All epochs must have a length of 40 seconds.")
 
-    # compute GFP and peaks of GFP
-    gfp = np.std(data, axis=0)
-    peaks, _ = find_peaks(gfp, distance=2)
-    gfp_peaks_all.append(peaks)
-    n_peaks = len(peaks)
-    n_gfp_peaks_all.append(n_peaks)
+        print(f"\n***Computing microstates for condition: {cond}***\n")
 
-    """
-    get subject-specific microstates
-        segment the data into 5 microstates that maximize GEV (GEV = global
-        explained variance = percentage of total variance explained by a
-        given microstate)
+        print(f"Number of subjects in this condition: {len(data_subset)}")
 
-    only time points that are GFP peaks are used (within microstates_subject)
-    """
-    maps, segmentation = microstates_subject.segment(
-        data, n_states=5, n_inits=1000, thresh=1e-10, max_iter=10000
-    )
-    maps_subject_all.append(maps)
+        # initialize lists
+        gfp_peaks_all = []
+        n_gfp_peaks_all = []
+        maps_subject_all = []
+        for data in data_subset:
 
-maps_subjects_all_arr = np.array(maps_subject_all)
+            # compute GFP and peaks of GFP
+            gfp = np.std(data, axis=0)
+            peaks, _ = find_peaks(gfp, distance=2)
+            gfp_peaks_all.append(peaks)
+            n_peaks = len(peaks)
+            n_gfp_peaks_all.append(n_peaks)
 
-# reshape for clustering all subject-specific microstates
-maps_subjects_all_arr = np.reshape(
-    maps_subjects_all_arr,
-    (
-        (maps_subjects_all_arr.shape[0] * maps_subjects_all_arr.shape[1]),
-        maps_subjects_all_arr.shape[2],
-    ),
-)
-maps_subjects_all_arr = maps_subjects_all_arr.T
+            """
+            get subject-specific microstates
+                segment the data into 5 microstates that maximize GEV (GEV = global
+                explained variance = percentage of total variance explained by a
+                given microstate)
 
-"""
-get group specific microstates
-    segment the data into 5 microstates that maximize GEV (GEV = global
-    explained variance = percentage of total variance explained by a given
-    microstate)
-"""
-maps_group, segmentation = microstates_group.segment(
-    maps_subjects_all_arr, n_states=5, n_inits=1000, thresh=1e-10, max_iter=10000
-)
-np.save(dir_microstates / "microstates_group.npy", maps_group)  # plot group microstates
+            only time points that are GFP peaks are used (within microstates_subject)
+            """
+            maps, segmentation = microstates_subject.segment(
+                data, n_states=5, n_inits=1000, thresh=1e-10, max_iter=10000
+            )
+            maps_subject_all.append(maps)
 
-# plot maps_group
-microstates_group.plot_maps(maps_group, preproc.info)
+        maps_subjects_all_arr = np.array(maps_subject_all)
 
-# backfitting to whole eeg signal
-maps_group = maps_group.T
-map_sequence_all = []
-corr_backmap = []
-for data in data_all:
-
-    corr_subj = []
-    for m in range(maps_group.shape[1]):
-        map_corr = microstates_group._corr_vectors(
-            data, maps_group[:, m].reshape(-1, 1)
+        # reshape for clustering all subject-specific microstates
+        maps_subjects_all_arr = np.reshape(
+            maps_subjects_all_arr,
+            (
+                (maps_subjects_all_arr.shape[0] * maps_subjects_all_arr.shape[1]),
+                maps_subjects_all_arr.shape[2],
+            ),
         )
-        corr_subj.append(map_corr)
+        maps_subjects_all_arr = maps_subjects_all_arr.T
 
-    corr_subj = np.array(corr_subj)
-    corr_subj_abs = abs(corr_subj)
-    corr_backmap.append(corr_subj_abs)
-    map_sequence = np.argmax(corr_subj_abs, axis=0)
-    map_sequence_all.append(map_sequence)
-
-# backfitting to GFP peaks of eeg signal only
-map_sequence_peaks_all = []
-for data, gfp_peaks_s in zip(data_all, gfp_peaks_all):
-    corr_subj = []
-
-    for m in range(maps_group.shape[1]):
-        map_corr_ind = microstates_group._corr_vectors(
-            data[:, gfp_peaks_s], maps_group[:, m].reshape(-1, 1)
+        """
+        get group specific microstates
+            segment the data into 5 microstates that maximize GEV (GEV = global
+            explained variance = percentage of total variance explained by a given
+            microstate)
+        """
+        maps_group, segmentation = microstates_group.segment(
+            maps_subjects_all_arr,
+            n_states=5,
+            n_inits=1000,
+            thresh=1e-10,
+            max_iter=10000,
         )
-        corr_subj.append(map_corr_ind)
+        np.save(
+            dir_microstates / f"microstates_group_{cond}.npy", maps_group
+        )  # plot group microstates
 
-    corr_subj = np.array(corr_subj)
-    corr_subj_abs = abs(corr_subj)
-    map_sequence_peaks = np.argmax(corr_subj_abs, axis=0)
-    map_sequence_peaks_all.append(map_sequence_peaks)
+        # plot maps_group
+        microstates_group.plot_maps(maps_group, preproc.info)
 
-# %% Compute microstate measures
+        # backfitting to whole eeg signal
+        maps_group = maps_group.T
+        map_sequence_all = []
+        corr_backmap = []
+        for data in data_subset:
 
-# compute coverage time per microstate all time points
-n_total_occurences_states_all = []
-coverage = []
-for seq in map_sequence_all:
-    n_total_occurences_states_all.append(np.bincount(seq))
-    coverage.append(np.bincount(seq) / len(seq))
+            corr_subj = []
+            for m in range(maps_group.shape[1]):
+                map_corr = microstates_group._corr_vectors(
+                    data, maps_group[:, m].reshape(-1, 1)
+                )
+                corr_subj.append(map_corr)
 
-# compute coverage time per microstate at GFP peaks
-n_total_occurences_states_peaks_all = []
-coverage_peak = []
-for seq in map_sequence_peaks_all:
-    n_total_occurences_states_peaks_all.append(np.bincount(seq))
-    coverage_peak.append(np.bincount(seq) / len(seq))
+            corr_subj = np.array(corr_subj)
+            corr_subj_abs = abs(corr_subj)
+            corr_backmap.append(corr_subj_abs)
+            map_sequence = np.argmax(corr_subj_abs, axis=0)
+            map_sequence_all.append(map_sequence)
 
-# compute occurences of microstates (times it is transitioned into a
-# microstate (no matter its duration))
+        # backfitting to GFP peaks of eeg signal only
+        map_sequence_peaks_all = []
+        for data, gfp_peaks_s in zip(data_subset, gfp_peaks_all):
+            corr_subj = []
 
-# occurences at all time points
-states_single_all = []
-for st in map_sequence_all:
-    st = np.array(st)
-    diff_st = np.diff(st)
-    pos = np.where(diff_st != 0)
-    pos = pos[0] + 1
-    pos = np.insert(pos, 0, 0)
-    states_single_all.append(st[pos])
+            for m in range(maps_group.shape[1]):
+                map_corr_ind = microstates_group._corr_vectors(
+                    data[:, gfp_peaks_s], maps_group[:, m].reshape(-1, 1)
+                )
+                corr_subj.append(map_corr_ind)
 
-n_single_occurences_states_all = []
-for st in states_single_all:
-    n_single_occurences_states_all.append(np.bincount(st))
+            corr_subj = np.array(corr_subj)
+            corr_subj_abs = abs(corr_subj)
+            map_sequence_peaks = np.argmax(corr_subj_abs, axis=0)
+            map_sequence_peaks_all.append(map_sequence_peaks)
 
-# occurences at all GFP peaks
-states_single_peaks_all = []
-for st in map_sequence_peaks_all:
-    st = np.array(st)
-    diff_st = np.diff(st)
-    pos = np.where(diff_st != 0)
-    pos = pos[0] + 1
-    pos = np.insert(pos, 0, 0)
-    states_single_peaks_all.append(st[pos])
+        # Compute microstate measures
 
-n_single_occurences_states_peaks_all = []
-for st in states_single_peaks_all:
-    n_single_occurences_states_peaks_all.append(np.bincount(st))
+        # compute coverage time per microstate all time points
+        n_total_occurences_states_all = []
+        coverage = []
+        for seq in map_sequence_all:
+            n_total_occurences_states_all.append(np.bincount(seq))
+            coverage.append(np.bincount(seq) / len(seq))
 
-# frequency of microstates
-frequency = []
-for st, e in zip(n_single_occurences_states_all, epoch_lengths):
-    freq = st / e
-    frequency.append(freq)
+        # compute coverage time per microstate at GFP peaks
+        n_total_occurences_states_peaks_all = []
+        coverage_peak = []
+        for seq in map_sequence_peaks_all:
+            n_total_occurences_states_peaks_all.append(np.bincount(seq))
+            coverage_peak.append(np.bincount(seq) / len(seq))
 
-# lifespan
-lifespan = np.array(n_total_occurences_states_all) / np.array(
-    n_single_occurences_states_all
-)
+        # compute occurences of microstates (times it is transitioned into a
+        # microstate (no matter its duration))
 
-# lifespan at GFP peaks
-lifespan_peaks = np.array(n_total_occurences_states_peaks_all) / np.array(
-    n_single_occurences_states_peaks_all
-)
+        # occurences at all time points
+        states_single_all = []
+        for st in map_sequence_all:
+            st = np.array(st)
+            diff_st = np.diff(st)
+            pos = np.where(diff_st != 0)
+            pos = pos[0] + 1
+            pos = np.insert(pos, 0, 0)
+            states_single_all.append(st[pos])
 
-# Transition probabilities
-# Function t_empirical used from:
-# https://github.com/Frederic-vW/eeg_microstates/blob/78283c71fb82d80704ba954d29bf88b830f2e416/eeg_microstates3.py
-# Copyright (c) 2017 Frederic von Wegner
-# MIT License
+        n_single_occurences_states_all = []
+        for st in states_single_all:
+            n_single_occurences_states_all.append(np.bincount(st))
 
+        # occurences at all GFP peaks
+        states_single_peaks_all = []
+        for st in map_sequence_peaks_all:
+            st = np.array(st)
+            diff_st = np.diff(st)
+            pos = np.where(diff_st != 0)
+            pos = pos[0] + 1
+            pos = np.insert(pos, 0, 0)
+            states_single_peaks_all.append(st[pos])
 
-# transition matrix
-def t_empirical(data, n_clusters):
-    T = np.zeros((n_clusters, n_clusters))
-    n = len(data)
-    for i in range(n - 1):
-        T[data[i], data[i + 1]] += 1.0
-    p_row = np.sum(T, axis=1)
-    for i in range(n_clusters):
-        if p_row[i] != 0.0:
-            for j in range(n_clusters):
-                T[i, j] /= p_row[i]  # normalize row sums to 1.0
-    return T
+        n_single_occurences_states_peaks_all = []
+        for st in states_single_peaks_all:
+            n_single_occurences_states_peaks_all.append(np.bincount(st))
 
+        # frequency of microstates
+        frequency = []
+        for st, e in zip(n_single_occurences_states_all, epoch_lengths):
+            freq = st / e
+            frequency.append(freq)
 
-# transition matrix of microstates all time points
-trans_mat = []
-for seq in map_sequence_all:
+        # lifespan
+        lifespan = np.array(n_total_occurences_states_all) / np.array(
+            n_single_occurences_states_all
+        )
 
-    trans_mat.append(t_empirical(seq, 5))
+        # lifespan at GFP peaks
+        lifespan_peaks = np.array(n_total_occurences_states_peaks_all) / np.array(
+            n_single_occurences_states_peaks_all
+        )
 
-# transition matrix of microstates GFP peaks only
-trans_mat_peak = []
-for seq in map_sequence_peaks_all:
+        # Transition probabilities
+        # Function t_empirical used from:
+        # https://github.com/Frederic-vW/eeg_microstates/blob/78283c71fb82d80704ba954d29bf88b830f2e416/eeg_microstates3.py
+        # Copyright (c) 2017 Frederic von Wegner
+        # MIT License
 
-    trans_mat_peak.append(t_empirical(seq, 5))
+        # transition matrix
+        def t_empirical(data, n_clusters):
+            T = np.zeros((n_clusters, n_clusters))
+            n = len(data)
+            for i in range(n - 1):
+                T[data[i], data[i + 1]] += 1.0
+            p_row = np.sum(T, axis=1)
+            for i in range(n_clusters):
+                if p_row[i] != 0.0:
+                    for j in range(n_clusters):
+                        T[i, j] /= p_row[i]  # normalize row sums to 1.0
+            return T
 
-# %% Post-hoc analyses microstate measures
+        # transition matrix of microstates all time points
+        trans_mat = []
+        for seq in map_sequence_all:
 
-# similarity of subject specific microstates
-similarity_subject_microstates_all = []
-for maps_subject in maps_subject_all:
+            trans_mat.append(t_empirical(seq, 5))
 
-    correlation_maps_subject = abs(np.corrcoef(maps_subject))
-    mean_correlation_maps_subject = np.mean(correlation_maps_subject)
-    similarity_subject_microstates_all.append(mean_correlation_maps_subject)
+        # transition matrix of microstates GFP peaks only
+        trans_mat_peak = []
+        for seq in map_sequence_peaks_all:
 
-# explained variance of individual signals by subject-specific microstates
-gev_subject_all = []
-for data, maps_subject in zip(data_all, maps_subject_all):
+            trans_mat_peak.append(t_empirical(seq, 5))
 
-    activation = maps_subject.dot(data)
-    segmentation = np.argmax(np.abs(activation), axis=0)
-    map_corr = microstates_group._corr_vectors(data, maps_subject[segmentation].T)
-    gfp = np.std(data, axis=0)
-    gfp_sum_sq = np.sum(gfp**2)
-    gev = sum((gfp * map_corr) ** 2) / gfp_sum_sq
-    gev_subject_all.append(gev)
+        # Post-hoc analyses microstate measures
 
-# explained variance of individual signals by group states
-gev_group_all = []
-for data in data_all:
+        # similarity of subject specific microstates
+        similarity_subject_microstates_all = []
+        for maps_subject in maps_subject_all:
 
-    activation = maps_group.T.dot(data)
-    segmentation = np.argmax(np.abs(activation), axis=0)
-    map_corr = microstates_group._corr_vectors(data, maps_group.T[segmentation].T)
-    gfp = np.std(data, axis=0)
-    gfp_sum_sq = np.sum(gfp**2)
-    gev = sum((gfp * map_corr) ** 2) / gfp_sum_sq
-    gev_group_all.append(gev)
+            correlation_maps_subject = abs(np.corrcoef(maps_subject))
+            mean_correlation_maps_subject = np.mean(correlation_maps_subject)
+            similarity_subject_microstates_all.append(mean_correlation_maps_subject)
 
-# %% Save variables in tables
+        # explained variance of individual signals by subject-specific microstates
+        gev_subject_all = []
+        for data, maps_subject in zip(data_subset, maps_subject_all):
 
-channel_names = preproc.info.ch_names
+            activation = maps_subject.dot(data)
+            segmentation = np.argmax(np.abs(activation), axis=0)
+            map_corr = microstates_group._corr_vectors(
+                data, maps_subject[segmentation].T
+            )
+            gfp = np.std(data, axis=0)
+            gfp_sum_sq = np.sum(gfp**2)
+            gev = sum((gfp * map_corr) ** 2) / gfp_sum_sq
+            gev_subject_all.append(gev)
 
-# number of GFP peaks
-variables = np.array(n_gfp_peaks_all)
-table_n_gfp_peaks = pd.DataFrame(variables, columns=["n_gfp_peaks"])
+        # explained variance of individual signals by group states
+        gev_group_all = []
+        for data in data_subset:
 
-# coverage of micorsates
-variables = np.array(coverage)
-names = []
-for i in range(variables.shape[1]):
-    names.append("coverage_" + str(i))
+            activation = maps_group.T.dot(data)
+            segmentation = np.argmax(np.abs(activation), axis=0)
+            map_corr = microstates_group._corr_vectors(
+                data, maps_group.T[segmentation].T
+            )
+            gfp = np.std(data, axis=0)
+            gfp_sum_sq = np.sum(gfp**2)
+            gev = sum((gfp * map_corr) ** 2) / gfp_sum_sq
+            gev_group_all.append(gev)
 
-names = np.array(names)
-table_coverage = pd.DataFrame(variables, columns=names)
+        # Save variables in tables
 
-# lifespan of microstates
-variables = np.array(lifespan)
-names = []
-for i in range(variables.shape[1]):
-    names.append("lifespan_" + str(i))
+        channel_names = preproc.info.ch_names
 
-names = np.array(names)
-table_lifespan = pd.DataFrame(variables, columns=names)
+        # number of GFP peaks
+        variables = np.array(n_gfp_peaks_all)
+        table_n_gfp_peaks = pd.DataFrame(variables, columns=["n_gfp_peaks"])
 
-# lifespan of microstates GFP peaks only
-variables = np.array(lifespan_peaks)
-names = []
-for i in range(variables.shape[1]):
-    names.append("lifespan_peaks_" + str(i))
+        # coverage of micorsates
+        variables = np.array(coverage)
+        names = []
+        for i in range(variables.shape[1]):
+            names.append("coverage_" + str(i))
 
-names = np.array(names)
-table_lifespan_peaks = pd.DataFrame(variables, columns=names)
+        names = np.array(names)
+        table_coverage = pd.DataFrame(variables, columns=names)
 
-# frequency of microstates
-variables = np.array(frequency)
-names = []
-for i in range(variables.shape[1]):
-    names.append("frequence_" + str(i))
+        # lifespan of microstates
+        variables = np.array(lifespan)
+        names = []
+        for i in range(variables.shape[1]):
+            names.append("lifespan_" + str(i))
 
-names = np.array(names)
-table_frequence = pd.DataFrame(variables, columns=names)
+        names = np.array(names)
+        table_lifespan = pd.DataFrame(variables, columns=names)
 
-# transition probabilities of microstates
-variables = np.array(trans_mat)
-column_names = []
-for ms1 in range(variables.shape[1]):
-    names = []
-    for ms2 in range(variables.shape[2]):
-        names.append("transition_probability_" + str(ms1) + "_" + str(ms2))
-    column_names.append(np.array(names))
-column_names = np.array(column_names)
+        # lifespan of microstates GFP peaks only
+        variables = np.array(lifespan_peaks)
+        names = []
+        for i in range(variables.shape[1]):
+            names.append("lifespan_peaks_" + str(i))
 
-data = np.reshape(
-    variables, (variables.shape[0], variables.shape[1] * variables.shape[2])
-)
-columns = np.reshape(column_names, (variables.shape[1] * variables.shape[2]))
-table_transmat = pd.DataFrame(data, columns=columns)
+        names = np.array(names)
+        table_lifespan_peaks = pd.DataFrame(variables, columns=names)
 
-# transition probabilities of microstates GFP peaks only
-variables = np.array(trans_mat_peak)
-column_names = []
-for ms1 in range(variables.shape[1]):
-    names = []
-    for ms2 in range(variables.shape[2]):
-        names.append("transition_probability_peaks_" + str(ms1) + "_" + str(ms2))
-    column_names.append(np.array(names))
-column_names = np.array(column_names)
+        # frequency of microstates
+        variables = np.array(frequency)
+        names = []
+        for i in range(variables.shape[1]):
+            names.append("frequence_" + str(i))
 
-data = np.reshape(
-    variables, (variables.shape[0], variables.shape[1] * variables.shape[2])
-)
-columns = np.reshape(column_names, (variables.shape[1] * variables.shape[2]))
-table_transmat_peak = pd.DataFrame(data, columns=columns)
+        names = np.array(names)
+        table_frequence = pd.DataFrame(variables, columns=names)
 
-# Post-hoc analyses
-variable_1 = np.array(similarity_subject_microstates_all)
-variable_2 = np.array(gev_subject_all)
-variable_3 = np.array(gev_group_all)
-variables = np.vstack((variable_1, variable_2, variable_3)).T
-table_posthoc = pd.DataFrame(
-    variables, columns=["similarity_subject_micosates", "gev_subject", "gev_group"]
-)
+        # transition probabilities of microstates
+        variables = np.array(trans_mat)
+        column_names = []
+        for ms1 in range(variables.shape[1]):
+            names = []
+            for ms2 in range(variables.shape[2]):
+                names.append("transition_probability_" + str(ms1) + "_" + str(ms2))
+            column_names.append(np.array(names))
+        column_names = np.array(column_names)
 
-df_microstate = pd.concat(
-    [
-        pd.DataFrame(IDs_subjects, columns=["ID"]),
-        pd.DataFrame(conditions, columns=["Condition"]),
-        pd.DataFrame(epoch_lengths, columns=["Length"]),
-        table_n_gfp_peaks,
-        table_coverage,
-        table_lifespan,
-        table_lifespan_peaks,
-        table_frequence,
-        table_transmat,
-        table_transmat_peak,
-        table_posthoc,
-    ],
-    axis=1,
-)
+        data = np.reshape(
+            variables, (variables.shape[0], variables.shape[1] * variables.shape[2])
+        )
+        columns = np.reshape(column_names, (variables.shape[1] * variables.shape[2]))
+        table_transmat = pd.DataFrame(data, columns=columns)
 
+        # transition probabilities of microstates GFP peaks only
+        variables = np.array(trans_mat_peak)
+        column_names = []
+        for ms1 in range(variables.shape[1]):
+            names = []
+            for ms2 in range(variables.shape[2]):
+                names.append(
+                    "transition_probability_peaks_" + str(ms1) + "_" + str(ms2)
+                )
+            column_names.append(np.array(names))
+        column_names = np.array(column_names)
 
-df_microstate.to_pickle(dir_microstates / "df_microstate.pkl")
+        data = np.reshape(
+            variables, (variables.shape[0], variables.shape[1] * variables.shape[2])
+        )
+        columns = np.reshape(column_names, (variables.shape[1] * variables.shape[2]))
+        table_transmat_peak = pd.DataFrame(data, columns=columns)
+
+        # Post-hoc analyses
+        variable_1 = np.array(similarity_subject_microstates_all)
+        variable_2 = np.array(gev_subject_all)
+        variable_3 = np.array(gev_group_all)
+        variables = np.vstack((variable_1, variable_2, variable_3)).T
+        table_posthoc = pd.DataFrame(
+            variables,
+            columns=["similarity_subject_micosates", "gev_subject", "gev_group"],
+        )
+
+        df_microstate = pd.concat(
+            [
+                pd.DataFrame(np.array(IDs_subjects)[indices], columns=["ID"]),
+                pd.DataFrame(np.array(conditions)[indices], columns=["Condition"]),
+                pd.DataFrame(np.array(epoch_lengths)[indices], columns=["Length"]),
+                table_n_gfp_peaks,
+                table_coverage,
+                table_lifespan,
+                table_lifespan_peaks,
+                table_frequence,
+                table_transmat,
+                table_transmat_peak,
+                table_posthoc,
+            ],
+            axis=1,
+        )
+
+        save_name = f"df_microstate_{cond}.pkl"
+        df_microstate.to_pickle(dir_microstates / save_name)
+
+    except Exception as e:
+        print(f"An error occurred while processing condition {cond}: {e}")
+        # Write log
+        with open(dir_log / f"Error_microstates_{cond}.txt", "a") as log_file:
+            log_file.write(f"Error processing condition {cond}: {e}\n")
+            log_file.write(traceback.format_exc())
 
 with open(dir_microstates / "channel_names", "wb") as fp:
     pickle.dump(channel_names, fp)
@@ -417,3 +458,5 @@ np.savetxt(
     delimiter=",",
     fmt="%s",
 )
+
+print(f"Microstate analysis completed and saved to {dir_microstates}.")
