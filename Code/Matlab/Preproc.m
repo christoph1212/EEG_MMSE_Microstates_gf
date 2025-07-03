@@ -270,7 +270,7 @@ try
             EEG.cc.d0601__pcaICA.rankUsed = min([EEG.cc.d0601__pcaICA.rankData,EEG.cc.d0601__pcaICA.rankChan]);
             
             % perform ICA
-            evalc("EEG = pop_runica(EEG,'icatype','runica','pca',EEG.cc.d0601__pcaICA.rankUsed,'extended',1,'interupt','off');");
+            evalc("EEG = pop_runica(EEG,'icatype','runica','pca',EEG.cc.d0601__pcaICA.rankUsed,'extended',1,'interupt','off','rndreset','no');");
 
             % Identify bad components with ADJUST 
             % (adapted ADJUST.m file - make sure to use the file from the Github Repository)
