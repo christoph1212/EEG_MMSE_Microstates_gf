@@ -5,6 +5,7 @@ Data/**
 
 Code/Python/venv/
 Code/Python/__pycache__/
+Code/Matlab/ICA_quality_check.m
 
 Results/
 
