@@ -162,7 +162,7 @@ grid on
 subplot(3,3,7)
 histogram(all_logs.IC_blink)
 title_text = sprintf("Blink ICs\nMean = %.2f\nSD = %.2f", ...
-    mean(all_logs.BadICs), std(all_logs.BadICs));
+    mean(all_logs.IC_blink), std(all_logs.IC_blink));
 title(title_text)
 grid on
 
@@ -170,8 +170,8 @@ subplot(3,3,8)
 histogram(all_logs.IC_horiz) 
 hold on
 histogram(all_logs.IC_vert)
-title_text = sprintf("Horizontal and Vertical ICs\nMean = %.2f\nSD = %.2f", ...
-    mean(all_logs.InterpolatedChannels), std(all_logs.InterpolatedChannels));
+title_text = sprintf("Horizontal and Vertical ICs\nMean_{horiz} = %.2f, SD_{horiz} = %.2f\nMean_{vert} = %.2f, SD_{vert} = %.2f", ...
+    mean(all_logs.IC_horiz), std(all_logs.IC_horiz), mean(all_logs.IC_vert), std(all_logs.IC_vert));
 title(title_text)
 legend('horizontal', 'vertical')
 grid on
@@ -179,7 +179,7 @@ grid on
 subplot(3,3,9)
 histogram(all_logs.IC_disc)
 title_text = sprintf("Discontinuitiy ICs\nMean = %.2f\nSD = %.2f", ...
-    mean(all_logs.SnippletLength), std(all_logs.SnippletLength));
+    mean(all_logs.IC_disc), std(all_logs.IC_disc));
 title(title_text)
 grid on
 
@@ -189,13 +189,13 @@ ax = findall(gcf, 'Type', 'axes');
 set(ax, 'Units', 'Normalized'); 
 positions = cell2mat(get(ax, 'Position'));
 
-min_width = min(positions(:,3));
-min_height = min(positions(:,4));
+max_width = max(positions(:,3));
+max_height = max(positions(:,4));
 
 for i = 1:length(ax)
     pos = get(ax(i), 'Position');
-    pos(3) = min_width;
-    pos(4) = min_height;
+    pos(3) = max_width;
+    pos(4) = max_height;
     set(ax(i), 'Position', pos);
 end
 
@@ -278,13 +278,14 @@ if isfile(VectorFilename)
 else
     % Set path and load files
     vector_path = strcat(dir_Root, "Data/MMSEData/");
-    vector_files = dir(fullfile(vector_path, 'MMSE_*.csv'));
+    vector_files = dir(fullfile(vector_path, 'MMSE_*set.csv'));
     
     % Initialize empty table
     all_vectors = table();
     
     % Loop through vector files
     for i = 1:length(vector_files)
+        fprintf('%d/%d\n', i, length(vector_files))
         file = fullfile(vector_path, vector_files(i).name);
         T = readtable(file);
         splits = strsplit(T.name{1}, '_');
@@ -313,121 +314,6 @@ fprintf("%d vector files removed due to NaN or Inf\n", height(all_vectors) - hei
 
 summary(all_vectors_clean)
 
-% Check Rank Correlation between conditions
-
-% define conditions and sets
-cond1 = "first_run_eyes_open";
-
-otherconds = ["first_run_eyes_closed", "second_run_eyes_open", "third_run_eyes_open"];
-sets = ["C", "F", "FL", "FR", "ML", "MR", "P", "PL", "PR"];
-
-% loop over sets and condition to compare
-for i_cond = 1:numel(otherconds)
-    for i_set = 1:numel(sets)
-        cond2 = otherconds(i_cond);
-        targetSet = sets(i_set);
-        
-        % get MMSE data
-        mmseVars = startsWith(all_vectors_clean.Properties.VariableNames, 'mmse_');
-        mmseCols = all_vectors_clean.Properties.VariableNames(mmseVars);
-        
-        % Filter for condition and set
-        T1 = all_vectors_clean(all_vectors_clean.Condition == cond1 & all_vectors_clean.Set == targetSet, :);
-        T2 = all_vectors_clean(all_vectors_clean.Condition == cond2 & all_vectors_clean.Set == targetSet, :);
-        
-        % get common IDs and filter
-        commonIDs = intersect(T1.ID, T2.ID);
-        
-        T1 = T1(ismember(T1.ID, commonIDs), :);
-        T2 = T2(ismember(T2.ID, commonIDs), :);
-        
-        % sort rows according to ID
-        T1 = sortrows(T1, 'ID');
-        T2 = sortrows(T2, 'ID');
-        
-        % get condition-specific MMSE data
-        X1 = T1{:, mmseVars};  % Condition 1
-        X2 = T2{:, mmseVars};  % Condition 2
-        
-        assert(isequal(T1.ID, T2.ID), 'IDs do not match!');
-        
-        % calculate Spearman correlation and save coefficient and p-value
-        numMMSE = size(X1, 2);
-        rhoValues = zeros(1, numMMSE);
-        pValues  = zeros(1, numMMSE);
-        
-        for i = 1:numMMSE
-            [r, p] = corr(X1(:, i), X2(:, i), 'Type', 'Spearman');
-            rhoValues(i) = r;
-            pValues(i)  = p;
-        end
-        
-        % save in table and print
-        resultTable = table(repelem(targetSet, numMMSE)', repelem(cond1, numMMSE)', repelem(cond2, numMMSE)', mmseCols', rhoValues', pValues', ...
-            'VariableNames', {'Set', 'Condition1', 'Condition2', 'MMSE_Vector', 'SpearmanRho', 'pValue'});
-        
-        disp(resultTable);
-        
-        % Scatterplots
-        mmseNames = all_vectors_clean.Properties.VariableNames(mmseVars);
-        figure('Name',sprintf('%s, %s', cond2, targetSet));
-        for i = 1:numMMSE
-            x = T1{:, mmseNames{i}};
-            y = T2{:, mmseNames{i}};
-            rho = corr(x, y, 'Type', 'Spearman');
-            subplot(3, 4, i);
-            scatter(x, y, 30, 'filled');
-            lsline;
-            title(sprintf('%s\nρ = %.2f', mmseNames{i}, rho), 'Interpreter', 'none');
-            xlabel(cond1, 'Interpreter', 'none');
-            ylabel(cond2, 'Interpreter', 'none');
-        end
-        sgtitle(sprintf('Retest-Reliability for each MMSE Vector (Set %s)', targetSet));
-    end
-end
-
-% Plotting
-conditions = categories(all_vectors.Condition);
-sets = categories(all_vectors.Set);
-plotidx = 1;
-
-figure()
-x = 1:12;
-mmse_cols = {'mmse_1', 'mmse_2', 'mmse_3', 'mmse_4', 'mmse_5', 'mmse_6', ...
-             'mmse_7', 'mmse_8', 'mmse_9', 'mmse_10', 'mmse_11', 'mmse_12'};
-
-for i_row = 1:numel(conditions)
-
-    for i_col = 1:numel(sets)
-        
-        % Get subset of data
-        subset = all_vectors_clean(all_vectors_clean.Condition == conditions{i_row} ...
-            & all_vectors_clean.Set == sets{i_col}, :);
-
-        subplot(3, 2, plotidx);
-        hold on
-
-        if ~isempty(subset)
-            % Calculate mean of MMSE Vector
-            mean_mmse = mean(subset{:, mmse_cols}, 1, 'omitnan');
-            plot(x, mean_mmse, '.-', 'DisplayName',char(sets(i_col)))
-            title_string = strsplit(conditions{i_row}, '_');
-            title_string = [title_string{1}, ' ', title_string{2}, ' ', title_string{3}, ' ', title_string{4}];
-            title(sprintf("%s (\\itN\\rm = %d)", title_string, height(subset)));
-        end
-
-    end
-
-    lgd = legend('show', 'Location', 'eastoutside');
-    title(lgd,'Channel Set');
-    xlabel('Scaling Vector');
-    ylabel('MMSE');
-    xticks(x);
-    grid on
-    hold off
-    plotidx = plotidx + 1;
-
-end
 
 %% MMSE Features
 
@@ -477,13 +363,70 @@ fprintf("%d vector files removed due to NaN or Inf\n", height(all_features) - he
 
 summary(all_features_clean)
 
-% Check Rank Correlation between conditions
+%% Full MMSE Data
+% Load data
+MMSE_data_path = strcat(dir_Root, "Data/MMSEData/");
+MMSE_data_full = readtable(fullfile(MMSE_data_path, "MMSE_data_full"));
 
+% remove undefined rows
+MMSE_data_full = MMSE_data_full(~strcmp(MMSE_data_full.Condition, '<undefined>'), :);
+MMSE_data_full = MMSE_data_full(~strcmp(MMSE_data_full.Gender, '<undefined>'), :);
+
+% make categorical
+MMSE_data_full.ID = categorical(MMSE_data_full.ID);
+MMSE_data_full.Condition = categorical(MMSE_data_full.Condition);
+MMSE_data_full.Set = categorical(MMSE_data_full.Set);
+MMSE_data_full.Length = double(MMSE_data_full.Length);
+
+% Vectors
+% Plot MMSE Vectors
+conditions = categories(MMSE_data_full.Condition);
+sets = ["C", "F", "FL", "FR", "ML", "MR", "P", "PL", "PR"];
+plotidx = 1;
+
+figure()
+x = 1:12;
+mmse_cols = {'mmse_1', 'mmse_2', 'mmse_3', 'mmse_4', 'mmse_5', 'mmse_6', ...
+             'mmse_7', 'mmse_8', 'mmse_9', 'mmse_10', 'mmse_11', 'mmse_12'};
+
+for i_row = 1:numel(conditions)
+
+    for i_col = 1:numel(sets)
+        
+        % Get subset of data
+        subset = MMSE_data_full(MMSE_data_full.Condition == conditions{i_row} ...
+            & MMSE_data_full.Set == sets{i_col}, :);
+
+        subplot(3, 2, plotidx);
+        hold on
+
+        if ~isempty(subset)
+            % Calculate mean of MMSE Vector
+            mean_mmse = mean(subset{:, mmse_cols}, 1, 'omitnan');
+            plot(x, mean_mmse, '.-', 'DisplayName',char(sets(i_col)))
+            title_string = strsplit(conditions{i_row}, '_');
+            title_string = [title_string{1}, ' ', title_string{2}, ' ', title_string{3}, ' ', title_string{4}];
+            title(sprintf("%s (\\itN\\rm = %d)", title_string, height(subset)));
+        end
+
+    end
+
+    lgd = legend('show', 'Location', 'eastoutside');
+    title(lgd,'Channel Set');
+    xlabel('Scaling Vector');
+    ylabel('MMSE');
+    xticks(x);
+    grid on
+    hold off
+    plotidx = plotidx + 1;
+
+end
+
+% Plot MMSE Re-test correlation
 % define conditions and sets
 cond1 = "first_run_eyes_open";
 
 otherconds = ["first_run_eyes_closed", "second_run_eyes_open", "third_run_eyes_open"];
-sets = ["C", "F", "FL", "FR", "ML", "MR", "P", "PL", "PR"];
 
 % loop over sets and condition to compare
 for i_cond = 1:numel(otherconds)
@@ -491,13 +434,84 @@ for i_cond = 1:numel(otherconds)
         cond2 = otherconds(i_cond);
         targetSet = sets(i_set);
         
-        % get Feature data
-        featVars = ["auc", "max_slope", "avg_entropy"];
-        featCols = all_features_clean.Properties.VariableNames(featVars);
+        % get MMSE data
+        mmseVars = startsWith(MMSE_data_full.Properties.VariableNames, 'mmse_');
+        mmseCols = MMSE_data_full.Properties.VariableNames(mmseVars);
         
         % Filter for condition and set
-        T1 = all_features_clean(all_features_clean.Condition == cond1 & all_features_clean.Set == targetSet, :);
-        T2 = all_features_clean(all_features_clean.Condition == cond2 & all_features_clean.Set == targetSet, :);
+        T1 = MMSE_data_full(MMSE_data_full.Condition == cond1 & MMSE_data_full.Set == targetSet, :);
+        T2 = MMSE_data_full(MMSE_data_full.Condition == cond2 & MMSE_data_full.Set == targetSet, :);
+        
+        % get common IDs and filter
+        commonIDs = intersect(T1.ID, T2.ID);
+        
+        T1 = T1(ismember(T1.ID, commonIDs), :);
+        T2 = T2(ismember(T2.ID, commonIDs), :);
+        
+        % sort rows according to ID
+        T1 = sortrows(T1, 'ID');
+        T2 = sortrows(T2, 'ID');
+        
+        % get condition-specific MMSE data
+        X1 = T1{:, mmseVars};  % Condition 1
+        X2 = T2{:, mmseVars};  % Condition 2
+        
+        assert(isequal(T1.ID, T2.ID), 'IDs do not match!');
+        
+        % calculate Spearman correlation and save coefficient and p-value
+        numMMSE = size(X1, 2);
+        rhoValues = zeros(1, numMMSE);
+        pValues  = zeros(1, numMMSE);
+        
+        for i = 1:numMMSE
+            [r, p] = corr(X1(:, i), X2(:, i), 'Type', 'Spearman');
+            rhoValues(i) = r;
+            pValues(i)  = p;
+        end
+        
+        % save in table and print
+        resultTable = table(repelem(targetSet, numMMSE)', repelem(cond1, numMMSE)', repelem(cond2, numMMSE)', mmseCols', rhoValues', pValues', ...
+            'VariableNames', {'Set', 'Condition1', 'Condition2', 'MMSE_Vector', 'SpearmanRho', 'pValue'});
+        
+        disp(resultTable);
+        
+        % Scatterplots
+        mmseNames = MMSE_data_full.Properties.VariableNames(mmseVars);
+        figure('Name',sprintf('%s, %s', cond2, targetSet));
+        for i = 1:numMMSE
+            x = T1{:, mmseNames{i}};
+            y = T2{:, mmseNames{i}};
+            rho = corr(x, y, 'Type', 'Spearman');
+            subplot(3, 4, i);
+            scatter(x, y, 30, 'filled');
+            lsline;
+            title(sprintf('%s\nρ = %.2f', mmseNames{i}, rho), 'Interpreter', 'none');
+            xlabel(cond1, 'Interpreter', 'none');
+            ylabel(cond2, 'Interpreter', 'none');
+        end
+        sgtitle(sprintf('Retest-Reliability for each MMSE Vector (Set %s)', targetSet));
+    end
+end
+
+
+% Features
+
+% Check Rank Correlation between conditions
+% loop over sets and condition to compare
+
+featVars = ["auc", "max_slope", "avg_entropy"];
+
+for i_cond = 1:numel(otherconds)
+    for i_set = 1:numel(sets)
+        cond2 = otherconds(i_cond);
+        targetSet = sets(i_set);
+        
+        % get Feature data
+        featCols = MMSE_data_full.Properties.VariableNames(featVars);
+        
+        % Filter for condition and set
+        T1 = MMSE_data_full(MMSE_data_full.Condition == cond1 & MMSE_data_full.Set == targetSet, :);
+        T2 = MMSE_data_full(MMSE_data_full.Condition == cond2 & MMSE_data_full.Set == targetSet, :);
         
         % get common IDs and filter
         commonIDs = intersect(T1.ID, T2.ID);
@@ -533,7 +547,7 @@ for i_cond = 1:numel(otherconds)
         disp(resultTable);
         
         % Scatterplots
-        featNames = all_features_clean.Properties.VariableNames(featVars);
+        featNames = MMSE_data_full.Properties.VariableNames(featVars);
         figure('Name',sprintf('%s, %s', cond2, targetSet));
         for i = 1:numfeat
             x = T1{:, featNames{i}};
@@ -551,13 +565,11 @@ for i_cond = 1:numel(otherconds)
 end
 
 % Plot each Feature in separate Figure
-conditions = categories(all_features_clean.Condition);
-sets = categories(all_features_clean.Set);
 Features = ["AUC", "Max-Slope", "Avg-Entropy"];
 
 for i_feat = 1:numel(Features)
     
-    figure(i_feat)
+    figure()
 
     % Initialize empty lists
     data = [];
@@ -577,11 +589,11 @@ for i_feat = 1:numel(Features)
         for i_col = 1:numel(sets)
            
             % Get subset of data
-            subset = all_features_clean(all_features_clean.Condition == condition & ...
-                all_features_clean.Set == sets{i_col}, :);
+            subset = MMSE_data_full(MMSE_data_full.Condition == condition & ...
+                MMSE_data_full.Set == sets{i_col}, :);
             
             if ~isempty(subset)
-                col_data = table2array(subset(:,i_feat+4));
+                col_data = table2array(subset(:,i_feat+7));
                 n = height(subset);
                 data_condition = [data_condition; col_data];
                 
