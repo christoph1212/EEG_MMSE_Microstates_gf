@@ -12,7 +12,7 @@
 # Last edit: July 2025
 
 if (!require("pacman")) install.packages("pacman")
-pacman::p_load(pls, mvdalab, tidyverse, rlist)
+pacman::p_load(pls, mvdalab, tidyverse, rlist, plspm)
 
 
 options(scipen = 999)
@@ -20,18 +20,18 @@ options(scipen = 999)
 rm(list = ls())
 
 # Create output folder
-savepath = "Results/"
+savepath <- "Results/"
 
 # Define main condition to analyse
-main_cond = "first_run_eyes_open"
+main_cond <- "first_run_eyes_open"
 
 if (!dir.exists(savepath)) {
   dir.create(savepath)
 }
 
 # List of analysis conditions
-data_types = c("MMSE", "Microstates")
-subsamples = c("Full", "Male", "Female")
+data_types <- c("MMSE", "Microstates")
+subsamples <- c("Full", "Male", "Female")
 
 # loop through data types and subsamples
 
@@ -46,7 +46,7 @@ for (data in data_types) {
     if (data == "MMSE") {
       ## MMSE data
       # load data set
-      mmse_datapath = "Data/MMSEData/MMSE_data_full.csv"
+      mmse_datapath <- "Data/MMSEData/MMSE_data_full.csv"
       
       # Check if file exists else continue with Microstates data
       if (!file.exists(mmse_datapath)) {
@@ -129,7 +129,7 @@ for (data in data_types) {
       cat(paste0("N = ", nrow(X)), "\n")
       
       # maximum number of components for PLS models
-      max_comp=30
+      max_comp<-30
       
       # PLSR model with CV to determine number of components
       PLSR_CV <- plsr(dep ~ indep, ncomp = max_comp, data = PLSmodel, 
@@ -157,7 +157,7 @@ for (data in data_types) {
       } else {
         
         # Select component
-        selected_comp = max(numberSignifComp, abs_min)
+        selected_comp <- max(numberSignifComp, abs_min)
         
         # Jack-knife estimator of regression coefficients
         jack.test(PLSR_CV,ncomp=numberSignifComp)
@@ -204,7 +204,7 @@ for (data in data_types) {
       
     } else {
       ## Microstate data
-      microstate_datapath = "Data/Microstates/Microstates_data_full.csv"
+      microstate_datapath <- "Data/Microstates/Microstates_data_full.csv"
       
       # Check if file exists
       if (!file.exists(microstate_datapath)) {
@@ -305,7 +305,7 @@ for (data in data_types) {
       cat(paste0("N = ", nrow(X)), "\n")
       
       # maximum number of components for PLS models
-      max_comp=30
+      max_comp<-30
       
       # PLSR model with CV to determine number of components
       PLSR_CV <- plsr(dep ~ indep, ncomp = max_comp, data = PLSmodel, 
@@ -332,8 +332,11 @@ for (data in data_types) {
         
       } else {
         
+        cat("Abs. Min: ", abs_min, "\n",
+            "Sign. Component: ", numberSignifComp, sep = "")
+        
         # Select component
-        selected_comp = max(numberSignifComp, abs_min)
+        selected_comp <- max(numberSignifComp, abs_min)
         
         # Jack-knife estimator of regression coefficients
         jack.test(PLSR_CV,ncomp=selected_comp)
@@ -360,7 +363,7 @@ for (data in data_types) {
         R2s(PLSR_BOOT)
         
         # bootstrapped confidence interval estimation
-        cfs_int <- coefficients.boots(PLSR_BOOT, ncomp = 1, conf = .95)
+        cfs_int <- coefficients.boots(PLSR_BOOT, ncomp = 1, conf = (1 - (0.05 / 3)))
         
         # all intervals
         x <- cfs_int[[1]]
@@ -368,10 +371,7 @@ for (data in data_types) {
         
         # significant regression coefficients obtained from bootstrapped 
         # confidence interval estimation with alpha=0.05
-        filter(x,x$"2.5%">0)
-        filter(x,x$"97.5%"<0)
-        
-        filter(x,x$"2.5%">0 | x$"97.5%" < 0)
+        print(filter(x, `0.8333333%` > 0 | `99.16667%` < 0))
         
       } # end for if numberSignifComp == 0
       
@@ -380,4 +380,199 @@ for (data in data_types) {
   } # end for subsample
   
 } # end for data type
+
+
+# PLSPM Model
+
+# MMSE
+
+# Define inner model
+auc <- c(0,0,0,0)
+max_slope <- c(0,0,0,0)
+avg_ent <- c(0,0,0,0)
+gf <- c(1,1,1,0)
+
+mmse_path <- rbind(auc,max_slope, avg_ent, gf)
+colnames(mmse_path) <- rownames(mmse_path)
+
+innerplot(mmse_path)
+
+# Define outer model
+mmse_blocks <- list(
+  colnames(mmse_data_wide_subsample %>% select(contains("auc"))), 
+  colnames(mmse_data_wide_subsample %>% select(contains("max_slope"))), 
+  colnames(mmse_data_wide_subsample %>% select(contains("avg_entropy"))), 
+  "gf_score")
+
+# Define mode
+mmse_mode <- rep("A",4)
+
+# Filter for Gender and run model separately
+mmse_data_wide_plspm_female <-  mmse_data_wide %>%
+  filter(Gender == "female") %>%
+  drop_na(all_of(unlist(mmse_blocks)))
+
+mmse_pls_female <- plspm(mmse_data_wide_plspm_female, mmse_path, mmse_blocks, modes = mmse_mode)
+
+mmse_data_wide_plspm_male <-  mmse_data_wide %>%
+  filter(Gender == "male") %>%
+  drop_na(all_of(unlist(mmse_blocks)))
+
+mmse_pls_male <- plspm(mmse_data_wide_plspm_male, mmse_path, mmse_blocks, modes = mmse_mode)
+
+# Run Group Model
+mmse_data_wide_plspm <-  mmse_data_wide %>%
+  drop_na(all_of(unlist(mmse_blocks))) %>%
+  filter(Gender != "<undefined>")
+
+mmse_data_wide_plspm$Gender <- as.factor(mmse_data_wide_plspm$Gender)
+
+mmse_pls <- plspm(mmse_data_wide_plspm, mmse_path, mmse_blocks, modes = mmse_mode)
+
+mmse_plspm_boot <- plspm.groups(mmse_pls, mmse_data_wide_plspm$Gender, 
+                                method = "bootstrap")
+
+mmse_plspm_boot
+
+bar_colors <- c("female" = "#FEB24C", "male" = "#74A9CF")
+
+bar_mmse <- mmse_plspm_boot$test[, 2:3] %>%
+  rownames_to_column("Path") %>%
+  pivot_longer(-Path, names_to = "Group", values_to = "Coefficient") %>%
+  mutate(Group = case_when(
+    Group == "group.female" ~ "female",
+    Group == "group.male" ~ "male",
+    TRUE ~ Group
+  ))
+
+bar_mmse$Path <- sub("->gf", "", bar_mmse$Path)
+bar_mmse$Path <- sub("_", ". ", bar_mmse$Path)
+bar_mmse$Path <- sub("ent", "entropy", bar_mmse$Path)
+bar_mmse$Path[1:2] <- toupper(bar_mmse$Path[1:2])
+bar_mmse$Path[3:6] <- tools::toTitleCase(bar_mmse$Path[3:6])
+
+plspm_plot_mmse <- ggplot(bar_mmse, aes(x = Path, y = Coefficient, 
+                                            fill = Group)) +
+  geom_bar(stat = "identity", position = position_dodge(width = 0.8), 
+           width = 0.7) +
+  geom_hline(yintercept = 0, color = "gray50") +
+  scale_fill_manual(values = bar_colors, name = NULL) +
+  scale_y_continuous(limits = c(-0.25, 0.25)) +
+  labs(x = NULL, y = "Path Coefficient") +
+  theme_classic(base_size = 14) +
+  theme(
+    panel.grid.major = element_line(color = "grey80"),
+    panel.grid.minor = element_line(color = "grey90"),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    axis.text = element_text(color = "gray30"),
+    legend.position = "right",
+    legend.text = element_text(color = "gray40")
+  )
+
+plspm_plot_mmse
+
+ggsave(filename = paste0(savepath, "PLSPM_MMSE.tiff"), 
+       plot = plspm_plot_mmse, width = 8, height = 5, dpi = 600)
+
+
+# Microstates
+
+# Define inner model
+n_peaks <- c(0,0,0,0,0,0,0,0)
+coverage <- c(0,0,0,0,0,0,0,0)
+lifespan <- c(0,0,0,0,0,0,0,0)
+lifespan_peaks <- c(0,0,0,0,0,0,0,0)
+frequency <- c(0,0,0,0,0,0,0,0)
+transition_probability <- c(0,0,0,0,0,0,0,0)
+transition_probability_peaks <- c(0,0,0,0,0,0,0,0)
+gf <- c(1,1,1,1,1,1,1,0)
+
+microstate_path <- rbind(n_peaks, coverage, lifespan, lifespan_peaks, frequency,
+                         transition_probability, transition_probability_peaks ,gf)
+colnames(microstate_path) <- rownames(microstate_path)
+
+innerplot(microstate_path)
+
+# Define outer model
+microstate_blocks <- list(
+  colnames(microstate_data %>% select(contains("n_gfp_peaks"))), 
+  colnames(microstate_data %>% select(contains("coverage"))), 
+  colnames(microstate_data %>% select(contains("lifespan"))),
+  colnames(microstate_data %>% select(contains("lifespan_peaks"))),
+  colnames(microstate_data %>% select(contains("frequence"))),
+  colnames(microstate_data %>% select(contains("transition_probability"))),
+  colnames(microstate_data %>% select(contains("transition_probability_peaks"))), 
+  "gf_score")
+
+# Define mode
+microstate_mode <- rep("A",8)
+
+# Filter for Gender and run model separately
+microstate_data_plspm_female <-  microstate_data %>%
+  filter(Gender == "female") %>%
+  drop_na(all_of(unlist(microstate_blocks)))
+
+microstate_pls_female <- plspm(microstate_data_plspm_female, microstate_path, 
+                               microstate_blocks, modes = microstate_mode)
+
+microstate_data_plspm_male <-  microstate_data %>%
+  filter(Gender == "male") %>%
+  drop_na(all_of(unlist(microstate_blocks)))
+
+mmse_pls_male <- plspm(microstate_data_plspm_male, microstate_path, 
+                       microstate_blocks, modes = microstate_mode)
+
+# Run Group Model
+microstate_data_plspm <-  microstate_data %>%
+  drop_na(all_of(unlist(microstate_blocks))) %>%
+  filter(Gender != "<undefined>")
+
+microstate_data_plspm$Gender <- as.factor(microstate_data_plspm$Gender)
+
+microstate_pls <- plspm(microstate_data_plspm, microstate_path, 
+                        microstate_blocks, modes = microstate_mode)
+
+microstate_plspm_boot <- plspm.groups(microstate_pls, microstate_data_plspm$Gender, 
+                                method = "bootstrap")
+
+microstate_plspm_boot
+
+bar_colors <- c("female" = "#FEB24C", "male" = "#74A9CF")
+
+bar_ms <- microstate_plspm_boot$test[, 2:3] %>%
+  rownames_to_column("Path") %>%
+  pivot_longer(-Path, names_to = "Group", values_to = "Coefficient") %>%
+  mutate(Group = case_when(
+    Group == "group.female" ~ "female",
+    Group == "group.male" ~ "male",
+    TRUE ~ Group
+  ))
+
+bar_ms$Path <- sub("->gf", "", bar_ms$Path)
+bar_ms$Path <- sub("_", " ", bar_ms$Path)
+bar_ms$Path <- sub("_", " ", bar_ms$Path)
+bar_ms$Path <- tools::toTitleCase(bar_ms$Path)
+bar_ms$Path[1:2] <- sub("n", "Number of GFP", bar_ms$Path[1:2])
+
+plspm_plot_microstate <- ggplot(bar_ms, aes(x = Path, y = Coefficient, 
+                                            fill = Group)) +
+  geom_bar(stat = "identity", position = position_dodge(width = 0.8), 
+           width = 0.7) +
+  geom_hline(yintercept = 0, color = "gray50") +
+  scale_fill_manual(values = bar_colors, name = NULL) +
+  scale_y_continuous(limits = c(-1.1, 1.1)) +
+  labs(x = NULL, y = "Path Coefficient") +
+  theme_classic(base_size = 14) +
+  theme(
+    panel.grid.major = element_line(color = "grey80"),
+    panel.grid.minor = element_line(color = "grey90"),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    axis.text = element_text(color = "gray30"),
+    legend.position = "right",
+    legend.text = element_text(color = "gray40")
+  )
+
+plspm_plot_microstate
   
+ggsave(filename = paste0(savepath, "PLSPM_Microstates.tiff"), 
+       plot = plspm_plot_microstate, width = 8, height = 5, dpi = 600)
