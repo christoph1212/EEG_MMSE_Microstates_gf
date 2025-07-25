@@ -468,8 +468,74 @@ for (data in data_types) {
                   male_sim$p.value, male_gev$p.value)
     )
     
+    # Correct for multiple comparisons
     hypothesis_2_3_correlations <- hypothesis_2_3_correlations %>%
       mutate(p_value_adj = p.adjust(p_value, method = "holm"))
+    
+    print(hypothesis_2_3_correlations)
+    
+    # Prepare plotting
+    base_data <- microstate_data %>%
+      select(ID, Gender, gf_score, similarity_subject_micosates, gev_group)
+    
+    label_map <- c(
+      gev_group = "GEV",
+      similarity_subject_micosates = "Spatial Similarity"
+    )
+    
+    plots_gev_sim <- list()
+    
+    # Plot the correlations
+    for (i in 1:nrow(hypothesis_2_3_correlations)) {
+      row <- hypothesis_2_3_correlations[i, ]
+      
+      # Filter data
+      data_plot <- if (row$Sample == "Female") {
+        filter(base_data, Gender == "female")
+      } else if (row$Sample == "Male") {
+        filter(base_data, Gender == "male")
+      } else {
+        base_data
+      }
+      
+      # extract X und Y
+      x <- row$X
+      y <- row$Y
+      
+      x_label <- label_map[[x]]
+
+      plots_gev_sim[[i]] <- ggplot(data_plot, aes_string(x = x, y = y)) +
+        geom_point(color = "#2c3e50", alpha = 0.7) +
+        geom_smooth(method = "lm", formula = y ~ x, 
+                    se = TRUE, color = "#e74c3c") +
+        labs(
+          title = paste0(row$Sample, "<br>",
+            "*r* = ", round(row$Pearson_R, 2),
+            ", *p* = ", format.pval(row$p_value_adj, digits = 3)
+          ),
+          x = x_label,
+          y = "fluid intelligence score"
+        ) +
+        theme_classic() +
+        theme(panel.grid.major = element_line(color = "grey80"),
+              panel.grid.minor = element_line(color = "grey90"),
+              panel.grid.major.x = element_line(),
+              panel.grid.major.y = element_line(),
+              plot.title = element_markdown(size = 14)
+        )
+    }
+    
+    sim_plots <- plot_grid(plotlist = plots_gev_sim[c(1, 3, 5)], 
+                          labels = "AUTO", ncol = 3)
+    
+    ggsave(filename = paste0(savepath, "similarity_gf_correlations.tiff"),
+           plot = sim_plots, width = 8, height = 3, dpi = 600)
+    
+    gev_plots <- plot_grid(plotlist = plots_gev_sim[c(2, 4, 6)], 
+                           labels = "AUTO", ncol = 3)
+    
+    ggsave(filename = paste0(savepath, "gev_gf_correlations.tiff"),
+           plot = gev_plots, width = 8, height = 3, dpi = 600)
     
     # Set conditions and microstates to compare
     cond1 <- "first_run_eyes_open"
