@@ -418,13 +418,58 @@ for (data in data_types) {
         rowSums(!is.na(across(-c(ID, gf_score, Gender, Age, Condition)))) > 0
       )
     
-    microstate_data_wide <- microstate_data %>%
-      pivot_wider(
-        id_cols = c(ID, gf_score, Gender, Age, Length),
-        names_from = Condition,
-        values_from = -c(ID, gf_score, Gender, Age, Length, Condition),
-        names_sep = "_"
-      )
+    # Microstate Hypotheses 2 and 3
+    # Full sample
+    microstate_data_sim_gev <- microstate_data %>%
+      select(ID, Gender, gf_score, Condition, 
+             similarity_subject_micosates, gev_group) %>%
+      filter(Condition == cond1)
+    
+    x <- microstate_data_sim_gev$similarity_subject_micosates
+    y <- microstate_data_sim_gev$gf_score
+    full_sim <- cor.test(x, y, method = "pearson")
+    
+    x <- microstate_data_sim_gev$gev_group
+    full_gev <- cor.test(x, y, method = "pearson")
+    
+    # Female
+    microstate_data_sim_gev_female <- microstate_data_sim_gev %>%
+      filter(Gender == "female")
+    
+    x <- microstate_data_sim_gev_female$similarity_subject_micosates
+    y <- microstate_data_sim_gev_female$gf_score
+    female_sim <- cor.test(x, y, method = "pearson")
+    
+    x <- microstate_data_sim_gev_female$gev_group
+    female_gev <- cor.test(x, y, method = "pearson")
+    
+    # Male
+    microstate_data_sim_gev_male <- microstate_data_sim_gev %>%
+      filter(Gender == "male")
+    
+    x <- microstate_data_sim_gev_male$similarity_subject_micosates
+    y <- microstate_data_sim_gev_male$gf_score
+    male_sim <- cor.test(x, y, method = "pearson")
+    
+    x <- microstate_data_sim_gev_male$gev_group
+    male_gev <- cor.test(x, y, method = "pearson")
+    
+    hypothesis_2_3_correlations <- tibble(
+      Sample = c("Full", "Full", "Female", "Female", "Male", "Male"),
+      X = c("similarity_subject_micosates", "gev_group",
+            "similarity_subject_micosates", "gev_group",
+            "similarity_subject_micosates", "gev_group"),
+      Y = rep("gf_score", 6),
+      Pearson_R = c(full_sim$estimate, full_gev$estimate,
+                    female_sim$estimate, female_gev$estimate,
+                    male_sim$estimate, male_gev$estimate),
+      p_value = c(full_sim$p.value, full_gev$p.value,
+                  female_sim$p.value, female_gev$p.value,
+                  male_sim$p.value, male_gev$p.value)
+    )
+    
+    hypothesis_2_3_correlations <- hypothesis_2_3_correlations %>%
+      mutate(p_value_adj = p.adjust(p_value, method = "holm"))
     
     # Set conditions and microstates to compare
     cond1 <- "first_run_eyes_open"
@@ -432,19 +477,20 @@ for (data in data_types) {
                     "third_run_eyes_open")
     condnames <- c("run 1 EC", "run 2 EO", "run 3 EO")
     ms <- c("A", "B", "C", "D", "F")
-    feat_vars_no_trans_prob <- c("coverage", "lifespan", "lifespan_peaks", 
-                                 "frequence")
-    feat_vars <- c("coverage", "lifespan", "lifespan_peaks", "frequence",
-                   "transition_probability", "transition_probability_peaks")
-    featurenames = c("Coverage", "Lifespan", "Lifespan at GFP Peaks", 
-                     "Frequency", "Transition Probability",
+    feat_vars_no_trans_prob <- c("coverage", "lifespan", 
+                                 "lifespan_peaks", "frequence")
+    feat_vars <- c("n_gfp_peaks", "coverage", "lifespan", "lifespan_peaks", 
+                   "frequence","transition_probability", 
+                   "transition_probability_peaks")
+    featurenames = c("Number of GFP Peaks", "Coverage", "Lifespan", 
+                     "Lifespan at GFP Peaks", "Frequency", "Transition Probability",
                      "Transition Probability at GFP Peaks")
     
     features <- unlist(lapply(feat_vars_no_trans_prob, function(f) paste0(f, "_", ms)))
     trans_prob <- names(microstate_data)[startsWith(names(microstate_data), 
                                                     "transition_probability_")]
     
-    all_features <- c(features, trans_prob)
+    all_features <- c("n_gfp_peaks", features, trans_prob)
     
     # Collect correlations
     plot_list_ms <- list()
@@ -549,6 +595,15 @@ for (data in data_types) {
           sub(".*_([A-Z])$", "\\1", feat) 
         }
         
+        microstate_to_plot = if (startsWith(feat, "transition_probability")) {
+          r <- sub(".*_([A-Z]_[A-Z])$", "\\1", feat)
+          gsub("_", " to ", x = r)
+        } else if (feat_base == "n_gfp_peaks") { 
+          ""
+        } else {
+          sub(".*_([A-Z])$", "\\1", feat) 
+        }
+        
         feat_name <- featurenames[which(feat_vars == feat_base)]
         plot_id <- paste(cond2, feat, sep = "_")
         
@@ -580,7 +635,7 @@ for (data in data_types) {
           geom_smooth(method = "lm", formula = y ~ x, 
                       se = TRUE, color = "#e74c3c") +
           labs(
-            title = paste0(feat_name, " Microstate ", microstate, "<br>",
+            title = paste0(feat_name, " ", microstate_to_plot, "<br>",
                            "*r* = ", round(rho_curr, 2), ", *p* ", p_disp),
             x = "run 1 EO",
             y = cond_label
@@ -619,7 +674,7 @@ for (data in data_types) {
         subplot_filename <- paste0(savepath, target_ms, '_', 
                                    cond2, '_retest.tiff')
           
-        ggsave(filename = subplot_filename, plot = subplots, width = 10, 
+        ggsave(filename = subplot_filename, plot = subplots, width = 10,
                height = 13, dpi = 600)
         
       }
@@ -627,7 +682,7 @@ for (data in data_types) {
       heatmap_data <- correlations_microstates %>%
         filter(Condition1 == cond1,
                Condition2 == cond2,
-               !Feature %in% c("transition_probability", 
+               !Feature %in% c("n_gfp_peaks", "transition_probability", 
                                "transition_probability_peaks")) %>%
         mutate(Feature = recode(Feature, 
                                 coverage = "Coverage",
@@ -662,7 +717,16 @@ for (data in data_types) {
       ggsave(filename = heatmap_filename, plot = heatmap_plot, width = 8, 
              height = 4, dpi = 600)
       
-      }
+    }
+    
+    # Last plot for Number of GFP Peaks
+    n_gfp_peaks_plot <- plot_grid(plotlist = plot_list_ms[c(1, 72, 143)], 
+                                  labels = "AUTO", ncol = 3)
+    
+    subplot_filename <- paste0(savepath, 'n_gfp_peaks_retest.tiff')
+    
+    ggsave(filename = subplot_filename, plot = n_gfp_peaks_plot, width = 8,
+           height = 3, dpi = 600)
     
   } # end for if data == "MMSE"
   
