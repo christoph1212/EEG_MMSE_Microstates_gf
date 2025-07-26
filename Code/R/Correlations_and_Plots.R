@@ -727,6 +727,8 @@ for (data in data_types) {
     
     # Create Plots for Re-Test for each Microstate and Condition
     plot_names <- names(plot_list_ms)
+    transition_plot_list <- list()
+    transition_peaks_plot_list <- list()
     
     for (cond2 in otherconds) {
 
@@ -783,7 +785,95 @@ for (data in data_types) {
       ggsave(filename = heatmap_filename, plot = heatmap_plot, width = 8, 
              height = 4, dpi = 600)
       
+      # Transition Probability
+      transition_data <- correlations_microstates %>%
+        filter(Condition1 == cond1,
+               Condition2 == cond2,
+               Feature == "transition_probability") %>%
+        separate(Microstate, into = c("From", "To"), sep = "_") %>%
+        mutate(signif = case_when(
+          pValue_adj < 0.001 ~ "***",
+          pValue_adj < 0.01  ~ "**",
+          pValue_adj < 0.05  ~ "*",
+          TRUE               ~ ""
+        ))
+      
+      # Relevel for plotting order
+      transition_data$From <- factor(transition_data$From, 
+                                     levels = rev(c("A", "B", "C", "D", "F")))
+      transition_data$To <- factor(transition_data$To, 
+                                   levels = c("A", "B", "C", "D", "F"))
+      
+      transition_plot_list[[cond2]] <- ggplot(transition_data, 
+                                              aes(x = To, y = From, 
+                                                  fill = SpearmanRho)) +
+        geom_tile(color = "white") +
+        geom_text(aes(label = signif), color = "white", size = 5) +
+        scale_fill_viridis_c(name = "Correlation", limits = c(-1, 1)) +
+        coord_fixed() +
+        theme_minimal(base_size = 14) +
+        theme(
+          axis.text.x = element_text(),
+          axis.title = element_blank(),
+          panel.grid = element_blank(),
+          plot.background = element_rect(fill = "white", color = NA)
+        )
+      
+      # Repeat for peaks
+      transition_peaks_data <- correlations_microstates %>%
+        filter(Condition1 == cond1,
+               Condition2 == cond2,
+               Feature == "transition_probability_peaks") %>%
+        separate(Microstate, into = c("From", "To"), sep = "_") %>%
+        mutate(signif = case_when(
+          pValue_adj < 0.001 ~ "***",
+          pValue_adj < 0.01  ~ "**",
+          pValue_adj < 0.05  ~ "*",
+          TRUE               ~ ""
+        ))
+      
+      # Relevel for plotting order
+      transition_peaks_data$From <- factor(transition_peaks_data$From, 
+                                     levels = rev(c("A", "B", "C", "D", "F")))
+      transition_peaks_data$To <- factor(transition_peaks_data$To, 
+                                   levels = c("A", "B", "C", "D", "F"))
+      
+      transition_peaks_plot_list[[cond2]] <- ggplot(transition_peaks_data, 
+                                              aes(x = To, y = From, 
+                                                  fill = SpearmanRho)) +
+        geom_tile(color = "white") +
+        geom_text(aes(label = signif), color = "white", size = 5) +
+        scale_fill_viridis_c(name = "Correlation", limits = c(-1, 1)) +
+        coord_fixed() +
+        theme_minimal(base_size = 14) +
+        theme(
+          axis.text.x = element_text(),
+          axis.title = element_blank(),
+          panel.grid = element_blank(),
+          plot.background = element_rect(fill = "white", color = NA)
+        )
+      
     }
+    
+    trans_prob_grid <- plot_grid(plotlist = transition_plot_list[1:3], 
+                                 labels = "AUTO", ncol = 3)
+    
+    trans_prob_grid_filename <- paste0(savepath, 
+                                       'transition_probability_retest.tiff')
+    
+    ggsave(filename = trans_prob_grid_filename, plot = trans_prob_grid, width = 15,
+           height = 5, dpi = 600, bg = "white")
+    
+    
+    trans_prob_peak_grid <- plot_grid(plotlist = transition_peaks_plot_list[1:3], 
+                                 labels = "AUTO", ncol = 3)
+    
+    trans_prob_peak_grid_filename <- paste0(savepath, 
+                                       'transition_probability_peaks_retest.tiff')
+    
+    ggsave(filename = trans_prob_peak_grid_filename, 
+           plot = trans_prob_peak_grid, width = 15, height = 5, 
+           dpi = 600, bg = "white")
     
     # Last plot for Number of GFP Peaks
     n_gfp_peaks_plot <- plot_grid(plotlist = plot_list_ms[c(1, 72, 143)], 
