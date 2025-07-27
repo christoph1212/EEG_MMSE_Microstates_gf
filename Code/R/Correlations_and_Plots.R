@@ -213,6 +213,8 @@ for (data in data_types) {
           TRUE           ~ ""
         ))
       
+      lim <- max(abs(heatmap_data$SpearmanRho), na.rm = TRUE)
+      limits = c(-lim, lim)
 
       heatmap_plot <- ggplot(heatmap_data, aes(x = Feature, y = Set, 
                                                fill = SpearmanRho)) +
@@ -223,7 +225,8 @@ for (data in data_types) {
               axis.title = element_blank(),
               panel.grid = element_blank(),
               plot.background = element_rect(fill = "white", color = NA)) +
-        scale_fill_viridis_c(name = "Correlation")
+        scale_fill_distiller(palette   = "RdBu", direction = -1, 
+                             name = "Correlation", limits = limits)
       
       heatmap_filename <- paste0(savepath, cond2, '_', '_hm_mmse_retest.tiff')
       
@@ -769,6 +772,9 @@ for (data in data_types) {
       heatmap_data$Microstate <- factor(heatmap_data$Microstate, 
                                    levels = c("F", "D", "C", "B", "A"))
       
+      lim <- max(abs(heatmap_data$SpearmanRho), na.rm = TRUE)
+      limits = c(-lim, lim)
+      
       heatmap_plot <- ggplot(heatmap_data, aes(x = Feature, y = Microstate, 
                                                fill = SpearmanRho)) +
         geom_tile(color = "white") +
@@ -778,7 +784,8 @@ for (data in data_types) {
               axis.title = element_blank(),
               panel.grid = element_blank(),
               plot.background = element_rect(fill = "white", color = NA)) +
-        scale_fill_viridis_c(name = "Correlation")
+        scale_fill_distiller(palette   = "RdBu", direction = -1, 
+                             name = "Correlation", limits = limits)
       
       heatmap_filename <- paste0(savepath, cond2, '_', '_hm_microstate_retest.tiff')
       
@@ -809,15 +816,15 @@ for (data in data_types) {
                                                   fill = SpearmanRho)) +
         geom_tile(color = "white") +
         geom_text(aes(label = signif), color = "white", size = 5) +
-        scale_fill_viridis_c(name = "Correlation", limits = c(-1, 1)) +
         coord_fixed() +
         theme_minimal(base_size = 14) +
         theme(
           axis.text.x = element_text(),
           axis.title = element_blank(),
           panel.grid = element_blank(),
-          plot.background = element_rect(fill = "white", color = NA)
-        )
+          plot.background = element_rect(fill = "white", color = NA)) +
+        scale_fill_distiller(palette   = "RdBu", direction = -1, 
+                             name = "Correlation", limits = c(-0.75, 0.75))
       
       # Repeat for peaks
       transition_peaks_data <- correlations_microstates %>%
@@ -838,20 +845,23 @@ for (data in data_types) {
       transition_peaks_data$To <- factor(transition_peaks_data$To, 
                                    levels = c("A", "B", "C", "D", "F"))
       
+      lim <- max(abs(transition_peaks_data$SpearmanRho), na.rm = TRUE)
+      limits = c(-lim, lim)
+      
       transition_peaks_plot_list[[cond2]] <- ggplot(transition_peaks_data, 
                                               aes(x = To, y = From, 
                                                   fill = SpearmanRho)) +
         geom_tile(color = "white") +
         geom_text(aes(label = signif), color = "white", size = 5) +
-        scale_fill_viridis_c(name = "Correlation", limits = c(-1, 1)) +
         coord_fixed() +
         theme_minimal(base_size = 14) +
         theme(
           axis.text.x = element_text(),
           axis.title = element_blank(),
           panel.grid = element_blank(),
-          plot.background = element_rect(fill = "white", color = NA)
-        )
+          plot.background = element_rect(fill = "white", color = NA)) +
+        scale_fill_distiller(palette   = "RdBu", direction = -1, 
+                             name = "Correlation", limits = c(-0.75, 0.75))
       
     }
     
