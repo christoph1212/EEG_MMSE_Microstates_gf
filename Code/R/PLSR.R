@@ -335,6 +335,12 @@ for (data in data_types) {
         cat("Abs. Min: ", abs_min, "\n",
             "Sign. Component: ", numberSignifComp, sep = "")
         
+        tiff(paste(savepath, "PLSR_selected_comps_", data, "_", sample, ".tiff", 
+                   sep = ""), width = 2400, height = 1800, res = 600)
+        selectNcomp(PLSR_CV, method = "randomization", alpha=0.05, nperm=10000, 
+                    plot = TRUE, ylim = c(0.9, 1.5))
+        dev.off()
+        
         # Select component
         selected_comp <- max(numberSignifComp, abs_min)
         
