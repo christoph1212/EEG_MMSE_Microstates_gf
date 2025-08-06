@@ -3,6 +3,11 @@ This is the GitHub Repository for the study "Are Resting-State EEG Spatiotempora
 
 To reproduce the results from the paper, simply clone the repository and request the data from the authors.
 
+## Code Credits:
+We used the code from Dreszer et al. ([2020](https://doi.org/10.1002/hbm.25162)) for mMSE and PLSR analyses, and adapted their scripts to our data. You can find their GitHub Repository [here](https://github.com/IS-UMK/complexity/tree/master).
+
+For microstates analysis, we used the code from Thiele et al. ([2023](https://doi.org/10.1523/ENEURO.0345-22.2022)) and adapted their scripts to our data. Their GitHub Repository is available [here](https://github.com/jonasAthiele/BrainComplexity_Intelligence).
+
 ## Analysis Pipeline
 Make sure to stay in the directory of the script you run (e.g. Matlab script $\rightarrow$ Matlab directory), otherwise the script will have problems finding the other files.
 
@@ -14,3 +19,8 @@ Make sure to stay in the directory of the script you run (e.g. Matlab script $\r
 5. Now switch to the `/R` folder. Run `PLSR.R` for partial least square regression analysis on both mMSE and microstate data. For plotting and calculation of retest-correlations, run `Correlations_and_Plots.R`.
 
 And that's it.
+
+## References
+Dreszer, J., Grochowski, M., Lewandowska, M., Nikadon, J., Gorgol, J., Bałaj, B., Finc, K., Duch, W., Kałamała, P., Chuderski, A. & Piotrowski, T. (2020). Spatiotemporal complexity patterns of resting‐state bioelectrical activity explain fluid intelligence: Sex matters. *Human Brain Mapping, 41*(17), 4846–4865. [https://doi.org/10.1002/hbm.25162](https://doi.org/10.1002/hbm.25162)
+
+Thiele, J. A., Richter, A. & Hilger, K. (2023). Multimodal brain signal complexity predicts human intelligence. *eNeuro, 10*(2), ENEURO.0345-22.2022. [https://doi.org/10.1523/eneuro.0345-22.2022](https://doi.org/10.1523/eneuro.0345-22.2022)
