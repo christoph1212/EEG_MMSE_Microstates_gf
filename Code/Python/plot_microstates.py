@@ -38,23 +38,24 @@ from matplotlib import pyplot as plt
 
 cwd = Path.cwd()
 dir_Root = cwd.parent.parent
-dir_Data = dir_Root + "/Data"
-dir_microstates = dir_Data + "/Microstates"
-dir_preprocessed = dir_Data + "/Snipplet"  # Epoched data
-dir_results = dir_Root + "/Results"
+dir_Data = dir_Root / "Data"
+dir_microstates = dir_Data / "Microstates"
+dir_preprocessed = dir_Data / "Snipplet"  # Epoched data
+dir_results = dir_Root / "Results"
 
-Participants = os.listdir(dir_Data + "/FluidData/task-IST")
+Participants = os.listdir(dir_Data / "FluidData/task-IST")
 
 gf_data = pd.DataFrame()
 gf_data["ID"] = Participants
 
 fluid_correct = pd.read_excel(
-    dir_Root + "/Data/FluidData/IST_fluid_A.xlsx", header=None
+    dir_Root / "Data/FluidData/IST_fluid_A.xlsx", header=None
 )
 fluid_correct = fluid_correct[1]
 
 gf_scores = []
 
+# Calculate fluid intelligence scores
 for idx, i_sub in enumerate(Participants):
 
     filepath = Path(dir_Root) / "Data" / "FluidData" / "task-IST" / i_sub / "beh"
@@ -79,7 +80,7 @@ gf_data["gf_score"] = gf_scores
 gf_data["gf_score"] = scipy.stats.zscore(gf_data["gf_score"], nan_policy="omit", ddof=1)
 
 demographics = pd.read_csv(
-    dir_Root + "/Data/SocioDemographics.txt", encoding="unicode_escape"
+    dir_Root / "Data/SocioDemographics.txt", encoding="unicode_escape"
 )
 demographics = demographics.loc[:, ["ID", "Gender", "Age"]]
 demographics["Gender"] = (
@@ -87,21 +88,16 @@ demographics["Gender"] = (
 )
 
 beh_data = pd.merge(gf_data, demographics, on="ID", how="outer")
-# beh_data = beh_data[beh_data['Age'].notna()]
-
-intell_main = beh_data["gf_score"].to_numpy()
-age_main = beh_data["Age"].to_numpy()  # age
-subs_beh = beh_data["ID"].to_numpy()  # subject IDs corresponding to behavioral data
 
 # Load group microstate data and check order
 ms_path = Path(dir_microstates)
 maps_group_files = list(ms_path.glob("microstates_group*.npy"))
 
-fname = "/40_seconds_first_run_eyes_closed_sub-AA06WI11_task-Resting_run-1_eeg.set"
+fname = "40_seconds_first_run_eyes_closed_sub-AA06WI11_task-Resting_run-1_eeg.set"
 
 preproc = mne.io.read_raw_eeglab(
-    dir_preprocessed + fname, preload=True
-)  # raw for topomap plotting
+    dir_preprocessed / fname, preload=True
+)  # for topomap plotting
 
 for maps_group_file in maps_group_files:
     maps_group_data = np.load(maps_group_file)
@@ -119,6 +115,7 @@ for maps_group_file in maps_group_files:
         cnt += 1
     fig.tight_layout()
 
+# Order of microstates in group maps
 ms_order_run1EC = [0, 4, 1, 2, 3]
 ms_order_run1EO = [4, 3, 1, 2, 0]
 ms_order_run2EC = [2, 4, 3, 0, 1]
@@ -203,22 +200,21 @@ df_microstate_all = df_microstate_all.dropna(subset=["Length"])
 # Merge data with behavioral data
 df_microstate_all = pd.merge(beh_data, df_microstate_all, on="ID", how="outer")
 
-if not os.path.exists(dir_microstates + "/Microstates_data_full.csv"):
+if not os.path.exists(dir_microstates / "Microstates_data_full.csv"):
     df_microstate_all.to_csv(
-        dir_microstates + "/Microstates_data_full.csv",
+        dir_microstates / "Microstates_data_full.csv",
         index=False,
         header=True,
     )
 # Load microstate data from Thiele et al. (2023)
 df_microstate_thiele = pd.read_pickle(
-    "C:/Users/Christoph Frühlinger/Nextcloud/PhD/Forschung/Complexity/Data/"
-    "Microstates/Thiele Data/df_complexity_org.pkl"
+    dir_microstates / "Thiele Data/df_complexity_org.pkl"
 )
 
 # Rename microstates from digits to letters
 ms_thiele_order = [4, 3, 1, 2, 0]
 label_map = {
-    str(orig_idx): alphabet_labels[new_idx] for new_idx, orig_idx in enumerate(order)
+    str(orig_idx): alphabet_labels[new_idx] for new_idx, orig_idx in enumerate(ms_thiele_order)
 }
 df_microstate_thiele = df_microstate_thiele.rename(
     columns={
@@ -256,9 +252,6 @@ df_long = combined_ms.melt(
 df_long[["Feature", "Microstate"]] = df_long["Feature"].str.rsplit(
     "_", n=1, expand=True
 )
-
-n_features = df_long["Feature"].nunique()
-col_wrap = 5
 
 labels_feature = {
     "coverage": "Coverage",
@@ -315,7 +308,7 @@ plt.subplots_adjust(top=0.92)
 plt.show()
 
 g.savefig(
-    dir_results + "/microstate_mean_sd.tiff",
+    dir_results / "microstate_mean_sd.tiff",
     format="tiff",
     dpi=600,
     bbox_inches="tight",
@@ -376,7 +369,7 @@ for i, feature in enumerate(features):
             index="From", columns="To", values="Value", aggfunc="mean"
         )
 
-        # Plot als Heatmap
+        # Plot Heatmap
         sns.heatmap(
             pivot,
             ax=ax,
@@ -409,7 +402,7 @@ cbar.ax.tick_params(labelsize=18)
 plt.show()
 
 fig.savefig(
-    dir_results + "/microstate_trans_prob_mean.tiff",
+    dir_results / "microstate_trans_prob_mean.tiff",
     format="tiff",
     dpi=600,
     bbox_inches="tight",
