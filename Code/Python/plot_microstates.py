@@ -48,9 +48,7 @@ Participants = os.listdir(dir_Data / "FluidData/task-IST")
 gf_data = pd.DataFrame()
 gf_data["ID"] = Participants
 
-fluid_correct = pd.read_excel(
-    dir_Root / "Data/FluidData/IST_fluid_A.xlsx", header=None
-)
+fluid_correct = pd.read_excel(dir_Root / "Data/FluidData/IST_fluid_A.xlsx", header=None)
 fluid_correct = fluid_correct[1]
 
 gf_scores = []
@@ -116,12 +114,12 @@ for maps_group_file in maps_group_files:
     fig.tight_layout()
 
 # Order of microstates in group maps
-ms_order_run1EC = [0, 4, 1, 2, 3]
+ms_order_run1EC = [1, 0, 3, 4, 2]
 ms_order_run1EO = [4, 3, 1, 2, 0]
 ms_order_run2EC = [2, 4, 3, 0, 1]
-ms_order_run2EO = [4, 0, 1, 3, 2]
-ms_order_run3EC = [1, 2, 3, 0, 4]
-ms_order_run3EO = [1, 4, 0, 3, 2]
+ms_order_run2EO = [1, 4, 0, 3, 2]
+ms_order_run3EC = [3, 1, 2, 0, 4]
+ms_order_run3EO = [0, 1, 4, 3, 2]
 
 ms_order_list = [
     ms_order_run1EC,
@@ -144,6 +142,11 @@ for cnt, maps_group_file in enumerate(maps_group_files):
         ax.spines["top"].set_visible(False)
 
     fig.tight_layout()
+    fig.savefig(
+        dir_results / f"{maps_group_file.stem}.tiff",
+        format="tiff",
+        dpi=600,
+        bbox_inches="tight")
 
 # Rename microstate labels from digits to letters
 ms_files = list(ms_path.glob("df_microstate*.pkl"))
@@ -214,7 +217,8 @@ df_microstate_thiele = pd.read_pickle(
 # Rename microstates from digits to letters
 ms_thiele_order = [4, 3, 1, 2, 0]
 label_map = {
-    str(orig_idx): alphabet_labels[new_idx] for new_idx, orig_idx in enumerate(ms_thiele_order)
+    str(orig_idx): alphabet_labels[new_idx] 
+    for new_idx, orig_idx in enumerate(ms_thiele_order)
 }
 df_microstate_thiele = df_microstate_thiele.rename(
     columns={
@@ -407,3 +411,5 @@ fig.savefig(
     dpi=600,
     bbox_inches="tight",
 )
+
+# %%
