@@ -22,8 +22,29 @@ rm(list = ls())
 # Create output folder
 savepath <- "Results/"
 
-# Define main condition to analyse
+# Define main condition to analyse 
+# first_run_eyes_open was the preregistered condition. We analyzed the remaining
+# exploratively. Just copy-paste the condition you are interested in.
+
 main_cond <- "first_run_eyes_open"
+
+if (main_cond == "first_run_eyes_open") {
+  
+  microstate_names <- c("0" = "F", "1" = "C", "2" = "D", "3" = "B", "4" = "A")
+  
+} else if (main_cond == "first_run_eyes_closed") {
+  
+  microstate_names <- c("0" = "A", "1" = "C", "2" = "D", "3" = "F", "4" = "B")
+  
+} else if (main_cond == "second_run_eyes_open") {
+  
+  microstate_names <- c("0" = "B", "1" = "C", "2" = "F", "3" = "D", "4" = "A")
+  
+} else if (main_cond == "third_run_eyes_open") {
+  
+  microstate_names <- c("0" = "C", "1" = "A", "2" = "F", "3" = "D", "4" = "B")
+  
+}
 
 if (!dir.exists(savepath)) {
   dir.create(savepath)
@@ -41,7 +62,8 @@ for (data in data_types) {
   
   for (sample in subsamples) {
     
-    cat(paste0("\n", "Data-Type: ", data, "; Subsample: ", sample, "\n"))
+    cat(paste0("\n", "Data-Type: ", data, "; Subsample: ", sample, 
+               "; Main Condition: ", main_cond, "\n"))
     
     if (data == "MMSE") {
       ## MMSE data
@@ -129,7 +151,7 @@ for (data in data_types) {
       cat(paste0("N = ", nrow(X)), "\n")
       
       # maximum number of components for PLS models
-      max_comp<-30
+      max_comp <- 30
       
       # PLSR model with CV to determine number of components
       PLSR_CV <- plsr(dep ~ indep, ncomp = max_comp, data = PLSmodel, 
@@ -148,13 +170,24 @@ for (data in data_types) {
         
         cat("Abs. Min: ", which.min(RMSEP(PLSR_CV)$val["adjCV", 1, ]) - 1, '\n')
         
-        tiff(paste(savepath, "PLSR_selected_comps_", data, "_", sample, ".tiff", 
-                   sep = ""), width = 2400, height = 1800, res = 600)
+        tiff(paste(savepath, "PLSR_selected_comps_", main_cond, "_", data, "_", 
+                   sample, ".tiff", sep = ""), width = 2400, height = 1800, 
+             res = 600)
         selectNcomp(PLSR_CV, method = "randomization", alpha=0.05, nperm=10000, 
                     plot = TRUE, ylim = c(0.9, 1.5))
         dev.off()
         
       } else {
+        
+        cat("Abs. Min: ", abs_min, "\n",
+            "Sign. Component: ", numberSignifComp, sep = "")
+        
+        tiff(paste(savepath, "PLSR_selected_comps_", main_cond, "_", data, "_", 
+                   sample, ".tiff", sep = ""), width = 2400, height = 1800, 
+             res = 600)
+        selectNcomp(PLSR_CV, method = "randomization", alpha=0.05, nperm=10000, 
+                    plot = TRUE, ylim = c(0.9, 1.5))
+        dev.off()
         
         # Select component
         selected_comp <- max(numberSignifComp, abs_min)
@@ -188,14 +221,13 @@ for (data in data_types) {
         
         # all intervals
         x <- cfs_int[[1]]
-        x
         
         # significant regression coefficients obtained from bootstrapped 
         # confidence interval estimation with alpha=0.05
         filter(x,x$"2.5%">0)
         filter(x,x$"97.5%"<0)
         
-        filter(x,x$"2.5%">0 & x$"97.5" < 0)
+        print(filter(x, `0.8333333%` > 0 | `99.16667%` < 0))
         
       } # end for if numberSignifComp == 0
       
@@ -215,8 +247,6 @@ for (data in data_types) {
       }
       
       microstate_data <- read_csv(microstate_datapath, show_col_types = FALSE)
-      
-      microstate_names <- c("0" = "F", "1" = "C", "2" = "D", "3" = "B", "4" = "A")
       
       colnames(microstate_data) <- str_replace_all(colnames(microstate_data), 
                                                    microstate_names)
@@ -324,8 +354,9 @@ for (data in data_types) {
         
         cat("Abs. Min:", which.min(RMSEP(PLSR_CV)$val["adjCV", 1, ]) - 1, '\n')
         
-        tiff(paste(savepath, "PLSR_selected_comps_", data, "_", sample, ".tiff", 
-                   sep = ""), width = 2400, height = 1800, res = 600)
+        tiff(paste(savepath, "PLSR_selected_comps_", main_cond, "_", data, "_",
+                   sample, ".tiff", sep = ""), width = 2400, height = 1800, 
+             res = 600)
         selectNcomp(PLSR_CV, method = "randomization", alpha=0.05, nperm=10000, 
                     plot = TRUE, ylim = c(0.9, 1.5))
         dev.off()
@@ -335,8 +366,9 @@ for (data in data_types) {
         cat("Abs. Min: ", abs_min, "\n",
             "Sign. Component: ", numberSignifComp, sep = "")
         
-        tiff(paste(savepath, "PLSR_selected_comps_", data, "_", sample, ".tiff", 
-                   sep = ""), width = 2400, height = 1800, res = 600)
+        tiff(paste(savepath, "PLSR_selected_comps_", main_cond, "_", data, "_", 
+                   sample, ".tiff", sep = ""), width = 2400, height = 1800, 
+             res = 600)
         selectNcomp(PLSR_CV, method = "randomization", alpha=0.05, nperm=10000, 
                     plot = TRUE, ylim = c(0.9, 1.5))
         dev.off()
@@ -373,7 +405,6 @@ for (data in data_types) {
         
         # all intervals
         x <- cfs_int[[1]]
-        x
         
         # significant regression coefficients obtained from bootstrapped 
         # confidence interval estimation with alpha=0.05
@@ -463,7 +494,7 @@ plspm_plot_mmse <- ggplot(bar_mmse, aes(x = Path, y = Coefficient,
            width = 0.7) +
   geom_hline(yintercept = 0, color = "gray50") +
   scale_fill_manual(values = bar_colors, name = NULL) +
-  scale_y_continuous(limits = c(-0.25, 0.25)) +
+  scale_y_continuous() +
   labs(x = NULL, y = "Path Coefficient") +
   theme_classic(base_size = 14) +
   theme(
@@ -477,7 +508,7 @@ plspm_plot_mmse <- ggplot(bar_mmse, aes(x = Path, y = Coefficient,
 
 plspm_plot_mmse
 
-ggsave(filename = paste0(savepath, "PLSPM_MMSE.tiff"), 
+ggsave(filename = paste0(savepath, "PLSPM_MMSE_" , main_cond, ".tiff"), 
        plot = plspm_plot_mmse, width = 8, height = 5, dpi = 600)
 
 
@@ -566,7 +597,7 @@ plspm_plot_microstate <- ggplot(bar_ms, aes(x = Path, y = Coefficient,
            width = 0.7) +
   geom_hline(yintercept = 0, color = "gray50") +
   scale_fill_manual(values = bar_colors, name = NULL) +
-  scale_y_continuous(limits = c(-1.1, 1.1)) +
+  scale_y_continuous() +
   labs(x = NULL, y = "Path Coefficient") +
   theme_classic(base_size = 14) +
   theme(
@@ -580,5 +611,5 @@ plspm_plot_microstate <- ggplot(bar_ms, aes(x = Path, y = Coefficient,
 
 plspm_plot_microstate
   
-ggsave(filename = paste0(savepath, "PLSPM_Microstates.tiff"), 
+ggsave(filename = paste0(savepath, "PLSPM_Microstates_" , main_cond, ".tiff"), 
        plot = plspm_plot_microstate, width = 8, height = 5, dpi = 600)
