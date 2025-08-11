@@ -28,24 +28,6 @@ savepath <- "Results/"
 
 main_cond <- "first_run_eyes_open"
 
-if (main_cond == "first_run_eyes_open") {
-  
-  microstate_names <- c("0" = "F", "1" = "C", "2" = "D", "3" = "B", "4" = "A")
-  
-} else if (main_cond == "first_run_eyes_closed") {
-  
-  microstate_names <- c("0" = "A", "1" = "C", "2" = "D", "3" = "F", "4" = "B")
-  
-} else if (main_cond == "second_run_eyes_open") {
-  
-  microstate_names <- c("0" = "B", "1" = "C", "2" = "F", "3" = "D", "4" = "A")
-  
-} else if (main_cond == "third_run_eyes_open") {
-  
-  microstate_names <- c("0" = "C", "1" = "A", "2" = "F", "3" = "D", "4" = "B")
-  
-}
-
 if (!dir.exists(savepath)) {
   dir.create(savepath)
 }
@@ -105,6 +87,28 @@ for (data in data_types) {
           names_from = SetCond,
           values_from = all_of(value_cols)
         )
+      
+      # Hypothesis 3 - Aggregate Score
+      aggregate_score <- rowMeans(cbind(
+        mmse_data_wide$`avg_entropy_FL-FR_first_run_eyes_open` * 0.133,
+        mmse_data_wide$avg_entropy_FL_first_run_eyes_open * 0.12,
+        mmse_data_wide$avg_entropy_P_first_run_eyes_open * 0.113,
+        mmse_data_wide$`max_slope_PL-PR_first_run_eyes_open` * 0.101,
+        mmse_data_wide$`max_slope_FR-PR_first_run_eyes_open` * 0.083,
+        mmse_data_wide$`avg_entropy_FL-PL_first_run_eyes_open` * 0.082,
+        mmse_data_wide$auc_FL_first_run_eyes_open * 0.076,
+        mmse_data_wide$`auc_FL-PL_first_run_eyes_open` * 0.07,
+        mmse_data_wide$`auc_FR-PR_first_run_eyes_open` * 0.053,
+        mmse_data_wide$max_slope_PR_first_run_eyes_open * -0.139,
+        mmse_data_wide$`max_slope_ML-MR_first_run_eyes_open` * -0.134,
+        mmse_data_wide$`avg_entropy_F-P_first_run_eyes_open` * -0.134,
+        mmse_data_wide$max_slope_ML_first_run_eyes_open * -0.102,
+        mmse_data_wide$`auc_F-P_first_run_eyes_open` * -0.084))
+      
+      hyp3 <- cor.test(aggregate_score, mmse_data_wide$gf_score, 
+                       method = "pearson")
+      
+      print(hyp3)
       
       # Select sample data
       if (sample != "Full") {
@@ -247,9 +251,6 @@ for (data in data_types) {
       }
       
       microstate_data <- read_csv(microstate_datapath, show_col_types = FALSE)
-      
-      colnames(microstate_data) <- str_replace_all(colnames(microstate_data), 
-                                                   microstate_names)
       
       # get rid of unnecessary information
       microstate_data <- microstate_data %>%
