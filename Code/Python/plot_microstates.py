@@ -33,6 +33,7 @@ import pandas as pd
 import scipy.stats
 import seaborn as sns
 from matplotlib import pyplot as plt
+from scipy.stats import pearsonr
 
 # %% Load data
 
@@ -146,7 +147,96 @@ for cnt, maps_group_file in enumerate(maps_group_files):
         dir_results / f"{maps_group_file.stem}.tiff",
         format="tiff",
         dpi=600,
-        bbox_inches="tight")
+        bbox_inches="tight",
+    )
+
+# Plot group microstates as one figure
+ms_condition_labels = ["Run 1 EO", "Run 1 EC", "Run 2 EO", "Run 3 EO"]
+microstate_labels = ["A", "B", "C", "D", "F"]
+
+relevant_indices = [1, 0, 3, 5]
+fig, axes = plt.subplots(nrows=4, ncols=5, figsize=(5 * 3, 4 * 3))
+
+for row, idx in enumerate(relevant_indices):
+    maps_group_data = np.load(maps_group_files[idx])
+    maps_group_data = maps_group_data[ms_order_list[idx], :]  # ggf. reorder
+
+    for col in range(5):
+        ax = axes[row, col] if 4 > 1 else axes[col]
+        mne.viz.plot_topomap(maps_group_data[col], preproc.info, axes=ax, show=False)
+        ax.spines["right"].set_visible(False)
+        ax.spines["top"].set_visible(False)
+        if row == 0:
+            ax.set_title(microstate_labels[col], fontsize=22, weight="bold")
+        if col == 0:
+            ax.set_ylabel(ms_condition_labels[row], fontsize=22, weight="bold")
+fig.tight_layout()
+fig.savefig(
+    dir_results / "Microstates_Group_Maps.tiff",
+    format="tiff",
+    dpi=600,
+    bbox_inches="tight",
+)
+
+# Microstate correlation matrices
+maps_run1EO = np.load(maps_group_files[1])
+maps_run1EO = maps_run1EO[ms_order_run1EO, :]
+
+maps_run1EC = np.load(maps_group_files[0])
+maps_run1EC = maps_run1EC[ms_order_run1EC, :]
+
+corr_matrix_run1EC = np.zeros((5, 5))
+
+for i in range(5):
+    for j in range(5):
+        corr_matrix_run1EC[i, j] = pearsonr(maps_run1EC[i], maps_run1EO[j])[0]
+
+
+maps_run2EO = np.load(maps_group_files[3])
+maps_run2EO = maps_run2EO[ms_order_run2EO, :]
+
+corr_matrix_run2EO = np.zeros((5, 5))
+
+for i in range(5):
+    for j in range(5):
+        corr_matrix_run2EO[i, j] = pearsonr(maps_run2EO[i], maps_run1EO[j])[0]
+
+
+maps_run3EO = np.load(maps_group_files[5])
+maps_run3EO = maps_run3EO[ms_order_run3EO, :]
+
+corr_matrix_run3EO = np.zeros((5, 5))
+
+for i in range(5):
+    for j in range(5):
+        corr_matrix_run3EO[i, j] = pearsonr(maps_run3EO[i], maps_run1EO[j])[0]
+
+matrices = [corr_matrix_run1EC, corr_matrix_run2EO, corr_matrix_run3EO]
+ylabels = ["Run 1 EC", "Run 2 EO", "Run 3 EO"]
+xlabels = ["Run 1 EO"] * 3
+
+fig, axes = plt.subplots(1, 3, figsize=(18, 5))
+for ax, mat, ylabel, xlabel in zip(axes, matrices, ylabels, xlabels):
+    im = ax.imshow(abs(mat), cmap="Reds", vmin=0, vmax=1)
+    ax.set_xticks(range(5))
+    ax.set_xticklabels(["A", "B", "C", "D", "F"])
+    ax.set_yticks(range(5))
+    ax.set_yticklabels(["A", "B", "C", "D", "F"])
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+fig.text(0.1, 0.9, "A", fontsize=16, fontweight="bold")
+fig.text(0.32, 0.9, "B", fontsize=16, fontweight="bold")
+fig.text(0.54, 0.9, "C", fontsize=16, fontweight="bold")
+cbar = fig.colorbar(im, ax=axes.ravel().tolist(), shrink=0.9)
+cbar.set_label("Pearson |r|")
+plt.savefig(
+    dir_results / "Microstate_Correlations.tiff",
+    format="tiff",
+    dpi=600,
+    bbox_inches="tight",
+)
 
 # Rename microstate labels from digits to letters
 ms_files = list(ms_path.glob("df_microstate*.pkl"))
@@ -217,7 +307,7 @@ df_microstate_thiele = pd.read_pickle(
 # Rename microstates from digits to letters
 ms_thiele_order = [4, 3, 1, 2, 0]
 label_map = {
-    str(orig_idx): alphabet_labels[new_idx] 
+    str(orig_idx): alphabet_labels[new_idx]
     for new_idx, orig_idx in enumerate(ms_thiele_order)
 }
 df_microstate_thiele = df_microstate_thiele.rename(
