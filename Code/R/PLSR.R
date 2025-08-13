@@ -197,7 +197,7 @@ for (data in data_types) {
         selected_comp <- max(numberSignifComp, abs_min)
         
         # Jack-knife estimator of regression coefficients
-        jack.test(PLSR_CV,ncomp=numberSignifComp)
+        jack.test(PLSR_CV,ncomp=selected_comp)
         
         # R-squared and RMSEP for CV model
         R2(PLSR_CV)
@@ -214,23 +214,21 @@ for (data in data_types) {
         # fitted (fixed-effect) PLS model using MVDALAB function allowing for 
         # bootstrapped confidence interval estimation 
         PLSR_BOOT <- plsFit(dep ~ indep, scale = TRUE, data = PLSmodel, 
-                            ncomp = numberSignifComp, validation = "oob", 
+                            ncomp = selected_comp, validation = "oob", 
                             boots = 10000)
         
         # R-squared for fitted model
         R2s(PLSR_BOOT)
         
         # bootstrapped confidence interval estimation
-        cfs_int <- coefficients.boots(PLSR_BOOT, ncomp = 1, conf = .95)
+        cfs_int <- coefficients.boots(PLSR_BOOT, ncomp = 1, 
+                                      conf = (1 - (0.05 / 3)))
         
         # all intervals
         x <- cfs_int[[1]]
         
         # significant regression coefficients obtained from bootstrapped 
         # confidence interval estimation with alpha=0.05
-        filter(x,x$"2.5%">0)
-        filter(x,x$"97.5%"<0)
-        
         print(filter(x, `0.8333333%` > 0 | `99.16667%` < 0))
         
       } # end for if numberSignifComp == 0
@@ -402,7 +400,8 @@ for (data in data_types) {
         R2s(PLSR_BOOT)
         
         # bootstrapped confidence interval estimation
-        cfs_int <- coefficients.boots(PLSR_BOOT, ncomp = 1, conf = (1 - (0.05 / 3)))
+        cfs_int <- coefficients.boots(PLSR_BOOT, ncomp = 1, 
+                                      conf = (1 - (0.05 / 3)))
         
         # all intervals
         x <- cfs_int[[1]]
@@ -450,13 +449,15 @@ mmse_data_wide_plspm_female <-  mmse_data_wide %>%
   filter(Gender == "female") %>%
   drop_na(all_of(unlist(mmse_blocks)))
 
-mmse_pls_female <- plspm(mmse_data_wide_plspm_female, mmse_path, mmse_blocks, modes = mmse_mode)
+mmse_pls_female <- plspm(mmse_data_wide_plspm_female, mmse_path, mmse_blocks, 
+                         modes = mmse_mode)
 
 mmse_data_wide_plspm_male <-  mmse_data_wide %>%
   filter(Gender == "male") %>%
   drop_na(all_of(unlist(mmse_blocks)))
 
-mmse_pls_male <- plspm(mmse_data_wide_plspm_male, mmse_path, mmse_blocks, modes = mmse_mode)
+mmse_pls_male <- plspm(mmse_data_wide_plspm_male, mmse_path, mmse_blocks, 
+                       modes = mmse_mode)
 
 # Run Group Model
 mmse_data_wide_plspm <-  mmse_data_wide %>%
@@ -465,7 +466,8 @@ mmse_data_wide_plspm <-  mmse_data_wide %>%
 
 mmse_data_wide_plspm$Gender <- as.factor(mmse_data_wide_plspm$Gender)
 
-mmse_pls <- plspm(mmse_data_wide_plspm, mmse_path, mmse_blocks, modes = mmse_mode)
+mmse_pls <- plspm(mmse_data_wide_plspm, mmse_path, mmse_blocks, 
+                  modes = mmse_mode)
 
 mmse_plspm_boot <- plspm.groups(mmse_pls, mmse_data_wide_plspm$Gender, 
                                 method = "bootstrap")
@@ -526,7 +528,7 @@ transition_probability_peaks <- c(0,0,0,0,0,0,0,0)
 gf <- c(1,1,1,1,1,1,1,0)
 
 microstate_path <- rbind(n_peaks, coverage, lifespan, lifespan_peaks, frequency,
-                         transition_probability, transition_probability_peaks ,gf)
+                         transition_probability, transition_probability_peaks, gf)
 colnames(microstate_path) <- rownames(microstate_path)
 
 innerplot(microstate_path)

@@ -187,10 +187,10 @@ for (data in data_types) {
         
         cat("Abs. Min: ", which.min(RMSEP(PLSR_CV)$val["adjCV", 1, ]) - 1, '\n')
         
-        tiff(paste(savepath, "PLSR_centered_selected_comps_", main_cond, "_", 
-                   data, "_", sample, ".tiff", sep = ""), width = 2400, 
+        tiff(paste(savepath, "PLSR_centered_selected_comps_", main_cond, "_",
+                   data, "_", sample, ".tiff", sep = ""), width = 2400,
              height = 1800, res = 600)
-        selectNcomp(PLSR_CV, method = "randomization", alpha=0.05, nperm=10000, 
+        selectNcomp(PLSR_CV, method = "randomization", alpha=0.05, nperm=10000,
                     plot = TRUE, ylim = c(0.9, 1.5))
         dev.off()
         
@@ -199,10 +199,10 @@ for (data in data_types) {
         cat("Abs. Min: ", abs_min, "\n",
             "Sign. Component: ", numberSignifComp, sep = "")
         
-        tiff(paste(savepath, "PLSR_centered_selected_comps_", main_cond, "_", 
-                   data, "_", sample, ".tiff", sep = ""), width = 2400, 
+        tiff(paste(savepath, "PLSR_centered_selected_comps_", main_cond, "_",
+                   data, "_", sample, ".tiff", sep = ""), width = 2400,
              height = 1800, res = 600)
-        selectNcomp(PLSR_CV, method = "randomization", alpha=0.05, nperm=10000, 
+        selectNcomp(PLSR_CV, method = "randomization", alpha=0.05, nperm=10000,
                     plot = TRUE, ylim = c(0.9, 1.5))
         dev.off()
         
@@ -210,7 +210,7 @@ for (data in data_types) {
         selected_comp <- max(numberSignifComp, abs_min)
         
         # Jack-knife estimator of regression coefficients
-        jack.test(PLSR_CV,ncomp=numberSignifComp)
+        jack.test(PLSR_CV,ncomp=selected_comp)
         
         # R-squared and RMSEP for CV model
         R2(PLSR_CV)
@@ -227,23 +227,21 @@ for (data in data_types) {
         # fitted (fixed-effect) PLS model using MVDALAB function allowing for 
         # bootstrapped confidence interval estimation 
         PLSR_BOOT <- plsFit(dep ~ indep, scale = TRUE, data = PLSmodel, 
-                            ncomp = numberSignifComp, validation = "oob", 
+                            ncomp = selected_comp, validation = "oob", 
                             boots = 10000)
         
         # R-squared for fitted model
         R2s(PLSR_BOOT)
         
         # bootstrapped confidence interval estimation
-        cfs_int <- coefficients.boots(PLSR_BOOT, ncomp = 1, conf = .95)
+        cfs_int <- coefficients.boots(PLSR_BOOT, ncomp = 1, 
+                                      conf = (1 - (0.05 / 3)))
         
         # all intervals
         x <- cfs_int[[1]]
         
         # significant regression coefficients obtained from bootstrapped 
         # confidence interval estimation with alpha=0.05
-        filter(x,x$"2.5%">0)
-        filter(x,x$"97.5%"<0)
-        
         print(filter(x, `0.8333333%` > 0 | `99.16667%` < 0))
         
       } # end for if numberSignifComp == 0
@@ -274,7 +272,8 @@ for (data in data_types) {
           rowSums(!is.na(across(-c(ID, gf_score, Gender, Age, Condition)))) > 0
         )
       
-      microstate_data <- merge(microstate_data, lab_data, by = "ID", all.x = TRUE)
+      microstate_data <- merge(microstate_data, lab_data, by = "ID", 
+                               all.x = TRUE)
       
       microstate_data_centered <- microstate_data %>%
         group_by(Lab) %>%
@@ -378,10 +377,10 @@ for (data in data_types) {
         
         cat("Abs. Min:", which.min(RMSEP(PLSR_CV)$val["adjCV", 1, ]) - 1, '\n')
         
-        tiff(paste(savepath, "PLSR_Centered_selected_comps_", main_cond, "_", 
+        tiff(paste(savepath, "PLSR_centered_selected_comps_", main_cond, "_",
                    data, "_", sample, ".tiff", sep = ""), width = 2400,
              height = 1800, res = 600)
-        selectNcomp(PLSR_CV, method = "randomization", alpha=0.05, nperm=10000, 
+        selectNcomp(PLSR_CV, method = "randomization", alpha=0.05, nperm=10000,
                     plot = TRUE, ylim = c(0.9, 1.5))
         dev.off()
         
@@ -390,10 +389,10 @@ for (data in data_types) {
         cat("Abs. Min: ", abs_min, "\n",
             "Sign. Component: ", numberSignifComp, sep = "")
         
-        tiff(paste(savepath, "PLSR_Centered_selected_comps_", main_cond, "_", 
-                   data, "_", sample, ".tiff", sep = ""), width = 2400, 
+        tiff(paste(savepath, "PLSR_centered_selected_comps_", main_cond, "_",
+                   data, "_", sample, ".tiff", sep = ""), width = 2400,
              height = 1800, res = 600)
-        selectNcomp(PLSR_CV, method = "randomization", alpha=0.05, nperm=10000, 
+        selectNcomp(PLSR_CV, method = "randomization", alpha=0.05, nperm=10000,
                     plot = TRUE, ylim = c(0.9, 1.5))
         dev.off()
         
@@ -425,7 +424,8 @@ for (data in data_types) {
         R2s(PLSR_BOOT)
         
         # bootstrapped confidence interval estimation
-        cfs_int <- coefficients.boots(PLSR_BOOT, ncomp = 1, conf = (1 - (0.05 / 3)))
+        cfs_int <- coefficients.boots(PLSR_BOOT, ncomp = 1, 
+                                      conf = (1 - (0.05 / 3)))
         
         # all intervals
         x <- cfs_int[[1]]
@@ -473,13 +473,15 @@ mmse_data_centered_plspm_female <-  mmse_data_centered %>%
   filter(Gender == "female") %>%
   drop_na(all_of(unlist(mmse_blocks)))
 
-mmse_pls_female <- plspm(mmse_data_centered_plspm_female, mmse_path, mmse_blocks, modes = mmse_mode)
+mmse_pls_female <- plspm(mmse_data_centered_plspm_female, mmse_path, 
+                         mmse_blocks, modes = mmse_mode)
 
 mmse_data_centered_plspm_male <-  mmse_data_centered %>%
   filter(Gender == "male") %>%
   drop_na(all_of(unlist(mmse_blocks)))
 
-mmse_pls_male <- plspm(mmse_data_centered_plspm_male, mmse_path, mmse_blocks, modes = mmse_mode)
+mmse_pls_male <- plspm(mmse_data_centered_plspm_male, mmse_path, mmse_blocks, 
+                       modes = mmse_mode)
 
 # Run Group Model
 mmse_data_centered_plspm <-  mmse_data_centered %>%
@@ -488,7 +490,8 @@ mmse_data_centered_plspm <-  mmse_data_centered %>%
 
 mmse_data_centered_plspm$Gender <- as.factor(mmse_data_centered_plspm$Gender)
 
-mmse_pls <- plspm(mmse_data_centered_plspm, mmse_path, mmse_blocks, modes = mmse_mode)
+mmse_pls <- plspm(mmse_data_centered_plspm, mmse_path, mmse_blocks, 
+                  modes = mmse_mode)
 
 mmse_plspm_boot <- plspm.groups(mmse_pls, mmse_data_centered_plspm$Gender, 
                                 method = "bootstrap")
@@ -532,7 +535,7 @@ plspm_plot_mmse <- ggplot(bar_mmse, aes(x = Path, y = Coefficient,
 
 plspm_plot_mmse
 
-ggsave(filename = paste0(savepath, "PLSPM_Centered_MMSE_" , main_cond, ".tiff"), 
+ggsave(filename = paste0(savepath, "PLSPM_centered_MMSE_" , main_cond, ".tiff"),
        plot = plspm_plot_mmse, width = 8, height = 5, dpi = 600)
 
 
@@ -549,7 +552,7 @@ transition_probability_peaks <- c(0,0,0,0,0,0,0,0)
 gf <- c(1,1,1,1,1,1,1,0)
 
 microstate_path <- rbind(n_peaks, coverage, lifespan, lifespan_peaks, frequency,
-                         transition_probability, transition_probability_peaks ,gf)
+                         transition_probability, transition_probability_peaks, gf)
 colnames(microstate_path) <- rownames(microstate_path)
 
 innerplot(microstate_path)
@@ -593,7 +596,8 @@ microstate_data_centered_plspm$Gender <- as.factor(microstate_data_centered_plsp
 microstate_pls <- plspm(microstate_data_centered_plspm, microstate_path, 
                         microstate_blocks, modes = microstate_mode)
 
-microstate_plspm_boot <- plspm.groups(microstate_pls, microstate_data_centered_plspm$Gender, 
+microstate_plspm_boot <- plspm.groups(microstate_pls, 
+                                      microstate_data_centered_plspm$Gender, 
                                       method = "bootstrap")
 
 microstate_plspm_boot
@@ -635,6 +639,6 @@ plspm_plot_microstate <- ggplot(bar_ms, aes(x = Path, y = Coefficient,
 
 plspm_plot_microstate
 
-ggsave(filename = paste0(savepath, "PLSPM_Centered_Microstates_" , main_cond, 
-                         ".tiff"), plot = plspm_plot_microstate, width = 8, 
+ggsave(filename = paste0(savepath, "PLSPM_centered_Microstates_" , main_cond,
+                         ".tiff"), plot = plspm_plot_microstate, width = 8,
        height = 5, dpi = 600)

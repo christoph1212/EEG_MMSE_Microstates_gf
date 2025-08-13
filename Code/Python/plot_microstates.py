@@ -387,7 +387,6 @@ g.map_dataframe(
     sns.barplot, x="Condition", y="Value", errorbar="sd", alpha=0.9, order=plot_order
 )
 
-# Achsen & Layout anpassen
 g.set_axis_labels("", "Mean", fontsize=22)
 for ax in g.axes.flat:
     ax.set_xticklabels([])
@@ -467,7 +466,7 @@ for i, feature in enumerate(features):
         sns.heatmap(
             pivot,
             ax=ax,
-            cmap="RdBu_r",
+            cmap="Reds",
             cbar=False,
             vmin=0,
             vmax=1,
@@ -488,7 +487,7 @@ for i, feature in enumerate(features):
         ax.set_xlabel("")
         ax.tick_params(rotation=0, labelsize=18)
 
-sm = plt.cm.ScalarMappable(cmap="RdBu_r")
+sm = plt.cm.ScalarMappable(cmap="Reds")
 sm.set_array([])
 cbar_ax = fig.add_axes([0.92, 0.15, 0.015, 0.7])
 cbar = fig.colorbar(sm, cax=cbar_ax)
