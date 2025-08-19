@@ -195,6 +195,8 @@ for (data in data_types) {
     write_csv(correlations_mmse, 
               paste0(savepath, "retest_correlations_", data, '.csv'))
     
+    heatmap_plot_list_mmse <- list()
+    
     for (cond2 in otherconds) {
     
       heatmap_data <- correlations_mmse %>%
@@ -216,7 +218,7 @@ for (data in data_types) {
       lim <- max(abs(heatmap_data$SpearmanRho), na.rm = TRUE)
       limits = c(-lim, lim)
 
-      heatmap_plot <- ggplot(heatmap_data, aes(x = Feature, y = Set, 
+      heatmap_plot_list_mmse[[cond2]] <- ggplot(heatmap_data, aes(x = Feature, y = Set, 
                                                fill = SpearmanRho)) +
         geom_tile(color = "white") +
         geom_text(aes(label = signif), color = "white", size = 6) +
@@ -234,6 +236,15 @@ for (data in data_types) {
              height = 4, dpi = 600)
       
     }
+    
+    mmse_retest <- plot_grid(plotlist = heatmap_plot_list_mmse[1:3], 
+                             labels = c("A", "B", "C"), ncol = 3)
+    
+    mmse_retest_filename <- paste0(savepath, 
+                                         'mmse_retest_correlations.tiff')
+    
+    ggsave(filename = mmse_retest_filename, plot = mmse_retest, width = 16, 
+           height = 4, dpi = 600, bg = "white")
     
     # Plot vector for indexing
     plot_vector = c(1,4,7,10,13,16,19,22,25)
@@ -364,7 +375,18 @@ for (data in data_types) {
            plot = vector_plot, width = 8, height = 3, dpi = 600)
     
     # Plot for All Condition
+    summary_all <- summary_all %>%
+      mutate(Condition = factor(Condition, 
+                                levels = c("first_run_eyes_open", 
+                                           "first_run_eyes_closed",
+                                           "second_run_eyes_open",
+                                           "third_run_eyes_open")))
+    
     vector_plot_all_conds <- summary_all %>%
+      filter(Condition %in% c("first_run_eyes_open", 
+                              "first_run_eyes_closed",
+                              "second_run_eyes_open",
+                              "third_run_eyes_open")) %>%
       ggplot(aes(x = mmse, y = mean, color = Set, group = Set)) +
       geom_line(size = 0.5) +
       geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper), 
@@ -383,11 +405,9 @@ for (data in data_types) {
       scale_colour_viridis_d() +
       facet_grid(Condition ~ Gender, labeller = labeller(Gender = c(
         "full" = "Full Sample", "female" = "Female", "male" = "Male"), 
-        Condition = c("first_run_eyes_closed"  = "Run 1 EC",
-                      "first_run_eyes_open"    = "Run 1 EO",
-                      "second_run_eyes_closed" = "Run 2 EC",
+        Condition = c("first_run_eyes_open"    = "Run 1 EO",
+                      "first_run_eyes_closed"  = "Run 1 EC",
                       "second_run_eyes_open"   = "Run 2 EO",
-                      "third_run_eyes_closed"  = "Run 3 EC",
                       "third_run_eyes_open"  = "Run 3 EO")))
     
     ggsave(filename = paste0(savepath, "MMSE_vectors_all_conds.tiff"), 
@@ -730,6 +750,7 @@ for (data in data_types) {
     
     # Create Plots for Re-Test for each Microstate and Condition
     plot_names <- names(plot_list_ms)
+    heatmap_plot_list <-
     transition_plot_list <- list()
     transition_peaks_plot_list <- list()
     
@@ -775,7 +796,7 @@ for (data in data_types) {
       lim <- max(abs(heatmap_data$SpearmanRho), na.rm = TRUE)
       limits = c(-lim, lim)
       
-      heatmap_plot <- ggplot(heatmap_data, aes(x = Feature, y = Microstate, 
+      heatmap_plot_list[[cond2]] <- ggplot(heatmap_data, aes(x = Feature, y = Microstate, 
                                                fill = SpearmanRho)) +
         geom_tile(color = "white") +
         geom_text(aes(label = signif), color = "white", size = 6) +
@@ -789,8 +810,8 @@ for (data in data_types) {
       
       heatmap_filename <- paste0(savepath, cond2, '_', '_hm_microstate_retest.tiff')
       
-      ggsave(filename = heatmap_filename, plot = heatmap_plot, width = 8, 
-             height = 4, dpi = 600)
+      ggsave(filename = heatmap_filename, plot = heatmap_plot_list[[cond2]], 
+             width = 8, height = 4, dpi = 600)
       
       # Transition Probability
       transition_data <- correlations_microstates %>%
@@ -883,6 +904,18 @@ for (data in data_types) {
     
     ggsave(filename = trans_prob_peak_grid_filename, 
            plot = trans_prob_peak_grid, width = 15, height = 5, 
+           dpi = 600, bg = "white")
+    
+    microstate_retest <- plot_grid(plotlist = c(heatmap_plot_list[1:3],
+                                                transition_plot_list[1:3],
+                                                transition_peaks_plot_list[1:3]), 
+                                   labels = c("A", "B", "C"), ncol = 3)
+    
+    microstate_retest_filename <- paste0(savepath, 
+                                       'microstate_retest_correlations.tiff')
+    
+    ggsave(filename = microstate_retest_filename, 
+           plot = microstate_retest, width = 16, height = 10, 
            dpi = 600, bg = "white")
     
     # Last plot for Number of GFP Peaks
