@@ -2,7 +2,7 @@
 # features and plots them.
 #
 # This script was created by Christoph Fruehlinger (June 2025)
-# Last edit: July 2025
+# Last edit: November 2025
 
 if (!require("pacman")) install.packages("pacman")
 pacman::p_load(tidyverse, rlist, cowplot, ggtext)
@@ -75,7 +75,7 @@ for (data in data_types) {
     otherconds <- c("first_run_eyes_closed", "second_run_eyes_open", 
                     "third_run_eyes_open")
     condnames <- c("run 1 EC", "run 2 EO", "run 3 EO")
-    sets <- c("C", "F", "FL", "FR", "ML", "MR", "P", "PL", "PR")
+    sets <- unique(mmse_data$Set)
     feat_vars <- c("auc", "max_slope", "avg_entropy")
     featurenames = c("AUC", "MaxSlope", "AvgEnt")
     
@@ -86,44 +86,44 @@ for (data in data_types) {
     
     # loop over conditions and sets
     for (cond2 in otherconds) {
-      
+
       for (target_set in sets) {
-        
+
         # filter
         T1 <- mmse_data %>%
           filter(Condition == cond1, Set == target_set)
-        
+
         T2 <- mmse_data %>%
           filter(Condition == cond2, Set == target_set)
-        
+
         # sort IDs
         common_ids <- intersect(T1$ID, T2$ID)
-        T1 <- T1 %>% 
-          filter(ID %in% common_ids) %>% 
+        T1 <- T1 %>%
+          filter(ID %in% common_ids) %>%
           arrange(ID)
-        T2 <- T2 %>% 
-          filter(ID %in% common_ids) %>% 
+        T2 <- T2 %>%
+          filter(ID %in% common_ids) %>%
           arrange(ID)
-        
+
         if (nrow(T1) == 0 || nrow(T2) == 0) next
-        
+
         stopifnot(identical(T1$ID, T2$ID))
-        
+
         # calculate correlations
         rho_vec <- numeric(length(feat_vars))
         p_vec <- numeric(length(feat_vars))
-        
+
         for (i in seq_along(feat_vars)) {
           x <- T1[[feat_vars[i]]]
           y <- T2[[feat_vars[i]]]
-          
+
           test <- cor.test(x, y, method = "spearman", exact = FALSE)
           rho_vec[i] <- test$estimate
           p_vec[i] <- test$p.value
         }
-        
+
         p_vals[[paste(cond2, target_set, sep = "_")]] <- p_vec
-        
+
         # save results
         corr_tbl <- tibble(
           Set = target_set,
@@ -133,56 +133,16 @@ for (data in data_types) {
           SpearmanRho = rho_vec,
           pValue = p_vec
         )
-        
+
         correlations_mmse <- bind_rows(
           correlations_mmse,
-          corr_tbl %>% 
+          corr_tbl %>%
             mutate(Comparison = paste(cond2, target_set, sep = "_"))
         )
-        
+
         correlations_mmse <- correlations_mmse %>%
           mutate(pValue_adj = p.adjust(pValue, method = "holm"))
-        
-        # Scatter plots
-        
-        for (i in seq_along(feat_vars)) {
-          
-          feature <- feat_vars[i]
-          featurename <- featurenames[i]
-          plot_id <- paste(cond2, target_set, feature, sep = "_")
-          
-          if (p_vec[i] < 0.001) {
-            
-            p_disp <- '< .001'
-            
-          } else {
-            
-            p_disp <- paste0('= ', round(p_vec[i], 3))
-            
-          }
-          
-          cond_label <- condnames[which(otherconds == cond2)]
-          
-          plot_list[[plot_id]] <- ggplot(data = data.frame(x = T1[[feature]],
-                                                           y = T2[[feature]]), 
-                                         aes(x = x, y = y)) +
-            geom_point(color = "#2c3e50", alpha = 0.7) +
-            geom_smooth(method = "lm", formula = y ~ x, 
-                        se = TRUE, color = "#e74c3c") +
-            labs(
-              title = paste0("Set: ", target_set, "<br>",
-                             "*r* = ", round(rho_vec[i], 2), ", *p* ", p_disp),
-              x = "run 1 EO",
-              y = cond_label
-            ) +
-            theme_classic() +
-            theme(
-              panel.grid.major = element_line(color = "grey80"),
-              panel.grid.minor = element_line(color = "grey90"),
-              panel.grid.major.x = element_line(),
-              panel.grid.major.y = element_line(),
-              plot.title = element_markdown(size = 14))
-        }
+
       }
     }
     
@@ -207,33 +167,24 @@ for (data in data_types) {
                                 max_slope = 'Max. Slope',
                                 avg_entropy =  'Avg. Entropy'))
       
-      heatmap_data <- heatmap_data %>%
-        mutate(signif = case_when(
-          pValue < 0.001 ~ "***",
-          pValue < 0.01  ~ "**",
-          pValue < 0.05  ~ "*",
-          TRUE           ~ ""
-        ))
-      
-      lim <- max(abs(heatmap_data$SpearmanRho), na.rm = TRUE)
-      limits = c(-lim, lim)
+      limits = c(0, .75)
 
       heatmap_plot_list_mmse[[cond2]] <- ggplot(heatmap_data, aes(x = Feature, y = Set, 
                                                fill = SpearmanRho)) +
         geom_tile(color = "white") +
-        geom_text(aes(label = signif), color = "white", size = 6) +
+        geom_text(aes(label = round(SpearmanRho, 2)), color = "black", size = 4) +
         theme_minimal(base_size = 14) +
         theme(axis.text.x = element_text(angle = 45, hjust = 1),
               axis.title = element_blank(),
               panel.grid = element_blank(),
               plot.background = element_rect(fill = "white", color = NA)) +
-        scale_fill_distiller(palette   = "RdBu", direction = -1, 
+        scale_fill_distiller(palette   = "Spectral", direction = -1, 
                              name = "Correlation", limits = limits)
       
-      heatmap_filename <- paste0(savepath, cond2, '_', '_hm_mmse_retest.tiff')
+      heatmap_filename <- paste0(savepath, cond2, '_', 'hm_mmse_retest.tiff')
       
-      ggsave(filename = heatmap_filename, plot = heatmap_plot, width = 8, 
-             height = 4, dpi = 600)
+      ggsave(filename = heatmap_filename, plot = heatmap_plot_list_mmse[[cond2]], 
+             width = 8, height = 4, dpi = 600)
       
     }
     
@@ -246,52 +197,6 @@ for (data in data_types) {
     ggsave(filename = mmse_retest_filename, plot = mmse_retest, width = 16, 
            height = 4, dpi = 600, bg = "white")
     
-    # Plot vector for indexing
-    plot_vector = c(1,4,7,10,13,16,19,22,25)
-    
-    # Create plot grids
-    auc_plot_1EC <- plot_grid(plotlist = plot_list[plot_vector], 
-                              labels = "AUTO", ncol = 3)
-    max_slope_plot_1EC <- plot_grid(plotlist = plot_list[plot_vector + 1], 
-                                    labels = "AUTO", ncol = 3)
-    avg_ent_plot_1EC <- plot_grid(plotlist = plot_list[plot_vector + 2], 
-                                  labels = "AUTO", ncol = 3)
-    
-    auc_plot_2EO <- plot_grid(plotlist = plot_list[plot_vector + 27], 
-                              labels = "AUTO", ncol = 3)
-    max_slope_plot_2EO <- plot_grid(plotlist = plot_list[plot_vector + 28], 
-                                    labels = "AUTO", ncol = 3)
-    avg_ent_plot_2EO <- plot_grid(plotlist = plot_list[plot_vector + 29], 
-                                  labels = "AUTO", ncol = 3)
-    
-    auc_plot_3EO <- plot_grid(plotlist = plot_list[plot_vector + 54], 
-                              labels = "AUTO", ncol = 3)
-    max_slope_plot_3EO <- plot_grid(plotlist = plot_list[plot_vector + 55], 
-                                    labels = "AUTO", ncol = 3)
-    avg_ent_plot_3EO <- plot_grid(plotlist = plot_list[plot_vector + 56], 
-                                  labels = "AUTO", ncol = 3)
-    
-    # save plots
-    ggsave(filename = paste0(savepath, "auc_1EC.tiff"), plot = auc_plot_1EC, 
-           width = 7, height = 7, dpi = 600)
-    ggsave(filename = paste0(savepath, "auc_2EO.tiff"), plot = auc_plot_2EO, 
-           width = 7, height = 7, dpi = 600)
-    ggsave(filename = paste0(savepath, "auc_3EO.tiff"), plot = auc_plot_3EO, 
-           width = 7, height = 7, dpi = 600)
-    
-    ggsave(filename = paste0(savepath, "max_slope_1EC.tiff"), 
-           plot = max_slope_plot_1EC, width = 7, height = 7, dpi = 600)
-    ggsave(filename = paste0(savepath, "max_slope_2EO.tiff"), 
-           plot = max_slope_plot_2EO, width = 7, height = 7, dpi = 600)
-    ggsave(filename = paste0(savepath, "max_slope_3EO.tiff"), 
-           plot = max_slope_plot_3EO, width = 7, height = 7, dpi = 600)
-    
-    ggsave(filename = paste0(savepath, "avg_ent_1EC.tiff"), 
-           plot = avg_ent_plot_1EC, width = 7, height = 7, dpi = 600)
-    ggsave(filename = paste0(savepath, "avg_ent_2EO.tiff"), 
-           plot = avg_ent_plot_2EO, width = 7, height = 7, dpi = 600)
-    ggsave(filename = paste0(savepath, "avg_ent_3EO.tiff"), 
-           plot = avg_ent_plot_3EO, width = 7, height = 7, dpi = 600)
     
     ## MMSE Vector Plots
     
@@ -382,11 +287,89 @@ for (data in data_types) {
                                            "second_run_eyes_open",
                                            "third_run_eyes_open")))
     
-    vector_plot_all_conds <- summary_all %>%
+    # Add Dreszer data for comparison
+    dreszer_mmse <- read.csv("Data/MMSEData/Dreszer Data/UJ_gf_complexity.csv")
+    dreszer_mmse <- dreszer_mmse[,c(1, 4, 51:ncol(dreszer_mmse))]
+    
+    # Convert to match summary_all dataframe
+    dreszer_mmse <- dreszer_mmse %>%
+      pivot_longer(
+        cols = -c(id, sex),
+        names_to = "variable",
+        values_to = "value"
+      ) %>%
+      mutate(
+        Set = str_extract(variable, "^[A-Za-z]+(?=_mmse)"),
+        mmse = paste0("mmse_", str_extract(variable, "\\d+$")),
+      ) %>%
+      mutate(
+        ID = id,
+        Gender = ifelse(sex == 1, "male", "female"),
+        gf_score = NA_real_,
+        Age = NA_real_,
+        Condition = "Dreszer et al. (2020)",
+        Length = NA_real_,
+        auc = NA_real_,
+        max_slope = NA_real_,
+        avg_entropy = NA_real_,
+        SetCond = NA_character_
+      ) %>%
+      select(ID, gf_score, Gender, Age, Condition, Set, Length, auc, max_slope,
+             avg_entropy, SetCond, mmse, value)
+    
+    # Create summary table for Dreszer et al. (2020) data 
+    summary_dreszer_full <- dreszer_mmse %>%
+      group_by(Set, mmse, Condition) %>%
+      summarise(
+        mean = mean(value, na.rm = TRUE),
+        sd = sd(value, na.rm = TRUE),
+        n = sum(!is.na(value)),
+        se = sd / sqrt(n),
+        ci_lower = mean - 1.96 * se,
+        ci_upper = mean + 1.96 * se,
+        .groups = "drop"
+      )
+    
+    summary_dreszer_full$mmse <- factor(summary_dreszer_full$mmse, 
+                                levels = paste0("mmse_", 1:12))
+    
+    # Set gender to "full" in full sample
+    summary_dreszer_full <- summary_dreszer_full %>%
+      mutate(Gender = "full") %>%
+      drop_na()
+    
+    # Repeat for gender specific subsamples
+    summary_dreszer_gender <- dreszer_mmse %>%
+      filter(Gender != "<undefined>") %>%
+      group_by(Gender, Set, mmse, Condition) %>%
+      summarise(
+        mean = mean(value, na.rm = TRUE),
+        sd = sd(value, na.rm = TRUE),
+        n = sum(!is.na(value)),
+        se = sd / sqrt(n),
+        ci_lower = mean - 1.96 * se,
+        ci_upper = mean + 1.96 * se,
+        .groups = "drop"
+      ) %>%
+      drop_na()
+    
+    summary_dreszer_gender$mmse <- factor(summary_dreszer_gender$mmse, 
+                                levels = paste0("mmse_", 1:12))
+    
+    summary_dreszer_all <- bind_rows(summary_dreszer_gender, 
+                                     summary_dreszer_full)
+    
+    summary_dreszer_all$Gender <- factor(summary_dreszer_all$Gender, 
+                                 levels = c("full", "female", "male"))
+    
+    mmse_all_data <- rbind(summary_all, summary_dreszer_all)
+    
+    vector_plot_all_conds <- mmse_all_data %>%
       filter(Condition %in% c("first_run_eyes_open", 
                               "first_run_eyes_closed",
                               "second_run_eyes_open",
-                              "third_run_eyes_open")) %>%
+                              "third_run_eyes_open",
+                              "Dreszer et al. (2020)")) %>%
       ggplot(aes(x = mmse, y = mean, color = Set, group = Set)) +
       geom_line(size = 0.5) +
       geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper), 
@@ -408,7 +391,8 @@ for (data in data_types) {
         Condition = c("first_run_eyes_open"    = "Run 1 EO",
                       "first_run_eyes_closed"  = "Run 1 EC",
                       "second_run_eyes_open"   = "Run 2 EO",
-                      "third_run_eyes_open"  = "Run 3 EO")))
+                      "third_run_eyes_open"  = "Run 3 EO",
+                      "Dreszer et al. (2020)" = "Dreszer et al.\n(2020)")))
     
     ggsave(filename = paste0(savepath, "MMSE_vectors_all_conds.tiff"), 
            plot = vector_plot_all_conds, width = 8, height = 8, dpi = 600)
@@ -644,101 +628,6 @@ for (data in data_types) {
     correlations_microstates <- correlations_microstates %>%
       mutate(pValue_adj = p.adjust(pValue, method = "holm"))
     
-    for (cond2 in otherconds) {
-      
-      T1 <- microstate_data %>%
-        filter(Condition == cond1)
-      
-      T2 <- microstate_data %>%
-        filter(Condition == cond2)
-      
-      # sort IDs
-      common_ids <- intersect(T1$ID, T2$ID)
-      T1 <- T1 %>% 
-        filter(ID %in% common_ids) %>% 
-        arrange(ID)
-      T2 <- T2 %>% 
-        filter(ID %in% common_ids) %>% 
-        arrange(ID)
-      
-      if (nrow(T1) == 0 || nrow(T2) == 0) next
-      
-      stopifnot(identical(T1$ID, T2$ID))
-
-      # Scatter plots
-      for (feat in all_features) {
-        
-        # Define for display
-        cond_label <- condnames[which(otherconds == cond2)]
-        feature <- feat
-        
-        feat_base = if (startsWith(feat, "transition_probability")) {
-          gsub("_[A-Z]_[A-Z]$", "", feat)
-        } else {
-          gsub("_[A-Z]$", "", feat)
-        }
-        
-        microstate = if (startsWith(feat, "transition_probability")) {
-          sub(".*_([A-Z]_[A-Z])$", "\\1", feat)
-        } else {
-          sub(".*_([A-Z])$", "\\1", feat) 
-        }
-        
-        microstate_to_plot = if (startsWith(feat, "transition_probability")) {
-          r <- sub(".*_([A-Z]_[A-Z])$", "\\1", feat)
-          gsub("_", " to ", x = r)
-        } else if (feat_base == "n_gfp_peaks") { 
-          ""
-        } else {
-          sub(".*_([A-Z])$", "\\1", feat) 
-        }
-        
-        feat_name <- featurenames[which(feat_vars == feat_base)]
-        plot_id <- paste(cond2, feat, sep = "_")
-        
-        # Get Rho and p-Values
-        corr_row <- correlations_microstates %>%
-          filter(Condition1 == cond1,
-                 Condition2 == cond2,
-                 Feature == feat_base,
-                 Microstate == microstate)
-        
-        rho_curr <- corr_row$SpearmanRho
-        p_val_curr <- corr_row$pValue_adj
-        
-        if (p_val_curr < 0.001) {
-          
-          p_disp <- '< .001'
-          
-        } else {
-          
-          p_disp <- paste0('= ', round(p_val_curr, 3))
-          
-        }
-        
-        # Plot
-        plot_list_ms[[plot_id]] <- ggplot(data = data.frame(x = T1[[feat]],
-                                                         y = T2[[feat]]), 
-                                       aes(x = x, y = y)) +
-          geom_point(color = "#2c3e50", alpha = 0.7) +
-          geom_smooth(method = "lm", formula = y ~ x, 
-                      se = TRUE, color = "#e74c3c") +
-          labs(
-            title = paste0(feat_name, " ", microstate_to_plot, "<br>",
-                           "*r* = ", round(rho_curr, 2), ", *p* ", p_disp),
-            x = "run 1 EO",
-            y = cond_label
-          ) +
-          theme_classic() +
-          theme(
-            panel.grid.major = element_line(color = "grey80"),
-            panel.grid.minor = element_line(color = "grey90"),
-            panel.grid.major.x = element_line(),
-            panel.grid.major.y = element_line(),
-            plot.title = element_markdown(size = 14))
-      }
-    }
-    
     # Descriptive
     correlations_microstates$Condition1 <- as.factor(correlations_microstates$Condition1)
     correlations_microstates$Condition2 <- as.factor(correlations_microstates$Condition2)
@@ -750,26 +639,11 @@ for (data in data_types) {
     
     # Create Plots for Re-Test for each Microstate and Condition
     plot_names <- names(plot_list_ms)
-    heatmap_plot_list <-
+    heatmap_plot_list <- list()
     transition_plot_list <- list()
     transition_peaks_plot_list <- list()
     
     for (cond2 in otherconds) {
-
-      for (target_ms in ms) {
-        
-        selected_plots <- filter_plots(plot_names, cond2, target_ms)
-        
-        subplots <- plot_grid(plotlist = plot_list_ms[selected_plots], 
-                                    labels = "AUTO", ncol = 2)
-        
-        subplot_filename <- paste0(savepath, target_ms, '_', 
-                                   cond2, '_retest.tiff')
-          
-        ggsave(filename = subplot_filename, plot = subplots, width = 10,
-               height = 13, dpi = 600)
-        
-      }
       
       heatmap_data <- correlations_microstates %>%
         filter(Condition1 == cond1,
@@ -782,33 +656,23 @@ for (data in data_types) {
                                 lifespan_peaks  =  "Lifespan (GFP Peaks)",
                                 frequence = "Frequency"))
       
-      heatmap_data <- heatmap_data %>%
-        mutate(signif = case_when(
-          pValue_adj < 0.001 ~ "***",
-          pValue_adj < 0.01  ~ "**",
-          pValue_adj < 0.05  ~ "*",
-          TRUE               ~ ""
-        ))
-      
       heatmap_data$Microstate <- factor(heatmap_data$Microstate, 
                                    levels = c("F", "D", "C", "B", "A"))
       
-      lim <- max(abs(heatmap_data$SpearmanRho), na.rm = TRUE)
-      limits = c(-lim, lim)
       
       heatmap_plot_list[[cond2]] <- ggplot(heatmap_data, aes(x = Feature, y = Microstate, 
                                                fill = SpearmanRho)) +
         geom_tile(color = "white") +
-        geom_text(aes(label = signif), color = "white", size = 6) +
+        geom_text(aes(label = round(SpearmanRho, 2)), color = "black", size = 4) +
         theme_minimal(base_size = 14) +
         theme(axis.text.x = element_text(angle = 45, hjust = 1),
               axis.title = element_blank(),
               panel.grid = element_blank(),
               plot.background = element_rect(fill = "white", color = NA)) +
-        scale_fill_distiller(palette   = "RdBu", direction = -1, 
+        scale_fill_distiller(palette   = "Spectral", direction = -1, 
                              name = "Correlation", limits = limits)
       
-      heatmap_filename <- paste0(savepath, cond2, '_', '_hm_microstate_retest.tiff')
+      heatmap_filename <- paste0(savepath, cond2, '_', 'hm_microstate_retest.tiff')
       
       ggsave(filename = heatmap_filename, plot = heatmap_plot_list[[cond2]], 
              width = 8, height = 4, dpi = 600)
@@ -818,13 +682,7 @@ for (data in data_types) {
         filter(Condition1 == cond1,
                Condition2 == cond2,
                Feature == "transition_probability") %>%
-        separate(Microstate, into = c("From", "To"), sep = "_") %>%
-        mutate(signif = case_when(
-          pValue_adj < 0.001 ~ "***",
-          pValue_adj < 0.01  ~ "**",
-          pValue_adj < 0.05  ~ "*",
-          TRUE               ~ ""
-        ))
+        separate(Microstate, into = c("From", "To"), sep = "_")
       
       # Relevel for plotting order
       transition_data$From <- factor(transition_data$From, 
@@ -836,7 +694,7 @@ for (data in data_types) {
                                               aes(x = To, y = From, 
                                                   fill = SpearmanRho)) +
         geom_tile(color = "white") +
-        geom_text(aes(label = signif), color = "white", size = 5) +
+        geom_text(aes(label = round(SpearmanRho, 2)), color = "black", size = 4) +
         coord_fixed() +
         theme_minimal(base_size = 14) +
         theme(
@@ -844,21 +702,15 @@ for (data in data_types) {
           axis.title = element_blank(),
           panel.grid = element_blank(),
           plot.background = element_rect(fill = "white", color = NA)) +
-        scale_fill_distiller(palette   = "RdBu", direction = -1, 
-                             name = "Correlation", limits = c(-0.75, 0.75))
+        scale_fill_distiller(palette   = "Spectral", direction = -1, 
+                             name = "Correlation", limits = limits)
       
       # Repeat for peaks
       transition_peaks_data <- correlations_microstates %>%
         filter(Condition1 == cond1,
                Condition2 == cond2,
                Feature == "transition_probability_peaks") %>%
-        separate(Microstate, into = c("From", "To"), sep = "_") %>%
-        mutate(signif = case_when(
-          pValue_adj < 0.001 ~ "***",
-          pValue_adj < 0.01  ~ "**",
-          pValue_adj < 0.05  ~ "*",
-          TRUE               ~ ""
-        ))
+        separate(Microstate, into = c("From", "To"), sep = "_") 
       
       # Relevel for plotting order
       transition_peaks_data$From <- factor(transition_peaks_data$From, 
@@ -866,14 +718,11 @@ for (data in data_types) {
       transition_peaks_data$To <- factor(transition_peaks_data$To, 
                                    levels = c("A", "B", "C", "D", "F"))
       
-      lim <- max(abs(transition_peaks_data$SpearmanRho), na.rm = TRUE)
-      limits = c(-lim, lim)
-      
       transition_peaks_plot_list[[cond2]] <- ggplot(transition_peaks_data, 
                                               aes(x = To, y = From, 
                                                   fill = SpearmanRho)) +
         geom_tile(color = "white") +
-        geom_text(aes(label = signif), color = "white", size = 5) +
+        geom_text(aes(label = round(SpearmanRho, 2)), color = "black", size = 4) +
         coord_fixed() +
         theme_minimal(base_size = 14) +
         theme(
@@ -881,8 +730,8 @@ for (data in data_types) {
           axis.title = element_blank(),
           panel.grid = element_blank(),
           plot.background = element_rect(fill = "white", color = NA)) +
-        scale_fill_distiller(palette   = "RdBu", direction = -1, 
-                             name = "Correlation", limits = c(-0.75, 0.75))
+        scale_fill_distiller(palette   = "Spectral", direction = -1, 
+                             name = "Correlation", limits = limits)
       
     }
     
