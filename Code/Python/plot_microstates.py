@@ -98,6 +98,12 @@ preproc = mne.io.read_raw_eeglab(
     dir_preprocessed / fname, preload=True
 )  # for topomap plotting
 
+# Add Thiele Data for comparison
+thiele_eeg = mne.io.read_raw_fif(Path(dir_microstates / "Thiele Data" / "info_raw.fif"))
+
+maps_group_thiele = Path(dir_microstates / "Thiele Data" / "microstates_group_org.npy")
+maps_group_files.append(maps_group_thiele)
+
 for maps_group_file in maps_group_files:
     maps_group_data = np.load(maps_group_file)
     fig, axes = plt.subplots(nrows=1, ncols=5)
@@ -105,8 +111,13 @@ for maps_group_file in maps_group_files:
     print(maps_group_file)
     for axes_row in axes:
 
+        if maps_group_file == maps_group_thiele:
+            eeg_map = thiele_eeg
+        else:
+            eeg_map = preproc
+
         mne.viz.plot_topomap(
-            maps_group_data[cnt], preproc.info, axes=axes_row, show=False
+            maps_group_data[cnt], eeg_map.info, axes=axes_row, show=False
         )
         axes_row.spines["right"].set_visible(False)
         axes_row.spines["top"].set_visible(False)
@@ -121,6 +132,7 @@ ms_order_run2EC = [2, 4, 3, 0, 1]
 ms_order_run2EO = [1, 4, 0, 3, 2]
 ms_order_run3EC = [3, 1, 2, 0, 4]
 ms_order_run3EO = [0, 1, 4, 3, 2]
+ms_order_thiele = [3, 0, 4, 2, 1]
 
 ms_order_list = [
     ms_order_run1EC,
@@ -129,16 +141,36 @@ ms_order_list = [
     ms_order_run2EO,
     ms_order_run3EC,
     ms_order_run3EO,
+    ms_order_thiele,
+]
+# Microstate polarization factors to get similar polarities across conditions
+ms_polarization_factor = [
+    [1, -1, -1, 1, 1],
+    [-1, 1, 1, 1, 1],
+    [1, -1, -1, -1, 1],
+    [1, -1, -1, -1, 1],
+    [1, 1, -1, -1, -1],
+    [-1, -1, 1, -1, -1],
+    [1, 1, 1, 1, 1],
 ]
 
 for cnt, maps_group_file in enumerate(maps_group_files):
     maps_group_data = np.load(maps_group_file)  # shape: (5, n_channels)
-    maps_group_data = maps_group_data[ms_order_list[cnt], :]  # reorder maps
+    maps_group_data = (
+        maps_group_data[ms_order_list[cnt], :]
+        * np.array(ms_polarization_factor[cnt])[:, np.newaxis]
+    )  # reorder maps
     fig, axes = plt.subplots(nrows=1, ncols=5)
     print(maps_group_file)
 
     for i, ax in enumerate(axes):
-        mne.viz.plot_topomap(maps_group_data[i], preproc.info, axes=ax, show=False)
+
+        if maps_group_file == maps_group_thiele:
+            eeg_map = thiele_eeg
+        else:
+            eeg_map = preproc
+
+        mne.viz.plot_topomap(maps_group_data[i], eeg_map.info, axes=ax, show=False)
         ax.spines["right"].set_visible(False)
         ax.spines["top"].set_visible(False)
 
@@ -151,19 +183,34 @@ for cnt, maps_group_file in enumerate(maps_group_files):
     )
 
 # Plot group microstates as one figure
-ms_condition_labels = ["Run 1 EO", "Run 1 EC", "Run 2 EO", "Run 3 EO"]
+ms_condition_labels = [
+    "Run 1 EO",
+    "Run 1 EC",
+    "Run 2 EO",
+    "Run 3 EO",
+    "Thiele et al.\n(2023)",
+]
 microstate_labels = ["A", "B", "C", "D", "F"]
 
-relevant_indices = [1, 0, 3, 5]
-fig, axes = plt.subplots(nrows=4, ncols=5, figsize=(5 * 3, 4 * 3))
+relevant_indices = [1, 0, 3, 5, 6]
+fig, axes = plt.subplots(
+    nrows=len(relevant_indices), ncols=len(microstate_labels), figsize=(5 * 3, 4 * 3)
+)
 
 for row, idx in enumerate(relevant_indices):
     maps_group_data = np.load(maps_group_files[idx])
-    maps_group_data = maps_group_data[ms_order_list[idx], :]  # ggf. reorder
+    maps_group_data = (
+        maps_group_data[ms_order_list[idx], :]
+        * np.array(ms_polarization_factor[idx])[:, np.newaxis]
+    )  # reorder
 
     for col in range(5):
-        ax = axes[row, col] if 4 > 1 else axes[col]
-        mne.viz.plot_topomap(maps_group_data[col], preproc.info, axes=ax, show=False)
+        ax = axes[row, col] if len(relevant_indices) > 1 else axes[col]
+        if maps_group_files[idx] == maps_group_thiele:
+            eeg_map = thiele_eeg
+        else:
+            eeg_map = preproc
+        mne.viz.plot_topomap(maps_group_data[col], eeg_map.info, axes=ax, show=False)
         ax.spines["right"].set_visible(False)
         ax.spines["top"].set_visible(False)
         if row == 0:
@@ -173,6 +220,28 @@ for row, idx in enumerate(relevant_indices):
 fig.tight_layout()
 fig.savefig(
     dir_results / "Microstates_Group_Maps.tiff",
+    format="tiff",
+    dpi=600,
+    bbox_inches="tight",
+)
+
+# Repeat for main condition of interest only
+fig, axes = plt.subplots(nrows=1, ncols=5)
+
+maps_group_data = np.load(maps_group_files[1])
+maps_group_data = (
+    maps_group_data[ms_order_list[1], :]
+    * np.array(ms_polarization_factor[1])[:, np.newaxis]
+)  # reorder
+for col in range(5):
+    ax = axes[col] if 4 > 1 else axes[col]
+    mne.viz.plot_topomap(maps_group_data[col], preproc.info, axes=ax, show=False)
+    ax.spines["right"].set_visible(False)
+    ax.spines["top"].set_visible(False)
+    ax.set_title(microstate_labels[col], fontsize=12, weight="bold")
+fig.tight_layout()
+fig.savefig(
+    dir_results / "Microstates_Group_Maps_Run1EO.tiff",
     format="tiff",
     dpi=600,
     bbox_inches="tight",
@@ -215,9 +284,21 @@ matrices = [corr_matrix_run1EC, corr_matrix_run2EO, corr_matrix_run3EO]
 ylabels = ["Run 1 EC", "Run 2 EO", "Run 3 EO"]
 xlabels = ["Run 1 EO"] * 3
 
+# Get diagonal data
+microstate_corr = [np.abs(np.diag(m)) for m in matrices]
+print(
+    f"Microstate correlations (|r|): "
+    f"mean = {round(np.mean(microstate_corr), 2)}, "
+    f"std = {round(np.std(microstate_corr), 2)}, "
+    f"min = {round(np.min(microstate_corr), 2)}, "
+    f"max = {round(np.max(microstate_corr), 2)}"
+)
+
 fig, axes = plt.subplots(1, 3, figsize=(18, 5))
 for ax, mat, ylabel, xlabel in zip(axes, matrices, ylabels, xlabels):
-    im = ax.imshow(abs(mat), cmap="Reds", vmin=0, vmax=1)
+    diag_mask = np.eye(mat.shape[0], dtype=bool)
+    diag_only = np.where(diag_mask, abs(mat), np.nan)
+    im = ax.imshow(diag_only, cmap="Reds", vmin=0, vmax=1)
     ax.set_xticks(range(5))
     ax.set_xticklabels(["A", "B", "C", "D", "F"])
     ax.set_yticks(range(5))
@@ -226,6 +307,19 @@ for ax, mat, ylabel, xlabel in zip(axes, matrices, ylabels, xlabels):
     ax.set_ylabel(ylabel)
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
+    for i in range(mat.shape[0]):
+        for j in range(mat.shape[1]):
+            if diag_mask[i, j]:  # nur Diagonalelemente
+                val = abs(mat[i, j])
+                ax.text(
+                    j,
+                    i,
+                    f"{val:.2f}",
+                    ha="center",
+                    va="center",
+                    color="white",
+                    fontsize=10,
+                )
 fig.text(0.1, 0.9, "A", fontsize=16, fontweight="bold")
 fig.text(0.32, 0.9, "B", fontsize=16, fontweight="bold")
 fig.text(0.54, 0.9, "C", fontsize=16, fontweight="bold")
