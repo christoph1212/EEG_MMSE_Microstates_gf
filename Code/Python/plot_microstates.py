@@ -542,6 +542,7 @@ features = df_long["Feature"].unique()
 n_rows = len(features)
 n_cols = len(plot_order)
 
+plt.rcParams.update({"font.size": 20})
 fig, axes = plt.subplots(n_rows, n_cols, figsize=(7 * n_cols, 7.2 * n_rows))
 
 for i, feature in enumerate(features):
@@ -565,7 +566,8 @@ for i, feature in enumerate(features):
             vmin=0,
             vmax=1,
             square=True,
-            annot=False,
+            annot=True,
+            fmt=".2f",
         )
 
         if i == 0:
