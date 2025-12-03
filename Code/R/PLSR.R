@@ -90,20 +90,20 @@ for (data in data_types) {
       
       # Hypothesis 3 - Aggregate Score
       aggregate_score <- rowMeans(cbind(
-        mmse_data_wide$`avg_entropy_FL-FR_first_run_eyes_open` * 0.133,
-        mmse_data_wide$avg_entropy_FL_first_run_eyes_open * 0.12,
-        mmse_data_wide$avg_entropy_P_first_run_eyes_open * 0.113,
-        mmse_data_wide$`max_slope_PL-PR_first_run_eyes_open` * 0.101,
-        mmse_data_wide$`max_slope_FR-PR_first_run_eyes_open` * 0.083,
-        mmse_data_wide$`avg_entropy_FL-PL_first_run_eyes_open` * 0.082,
-        mmse_data_wide$auc_FL_first_run_eyes_open * 0.076,
-        mmse_data_wide$`auc_FL-PL_first_run_eyes_open` * 0.07,
-        mmse_data_wide$`auc_FR-PR_first_run_eyes_open` * 0.053,
-        mmse_data_wide$max_slope_PR_first_run_eyes_open * -0.139,
-        mmse_data_wide$`max_slope_ML-MR_first_run_eyes_open` * -0.134,
-        mmse_data_wide$`avg_entropy_F-P_first_run_eyes_open` * -0.134,
-        mmse_data_wide$max_slope_ML_first_run_eyes_open * -0.102,
-        mmse_data_wide$`auc_F-P_first_run_eyes_open` * -0.084))
+        scale(mmse_data_wide$`avg_entropy_FL-FR_first_run_eyes_open`) * 0.133,
+        scale(mmse_data_wide$avg_entropy_FL_first_run_eyes_open) * 0.12,
+        scale(mmse_data_wide$avg_entropy_P_first_run_eyes_open) * 0.113,
+        scale(mmse_data_wide$`max_slope_PL-PR_first_run_eyes_open`) * 0.101,
+        scale(mmse_data_wide$`max_slope_FR-PR_first_run_eyes_open`) * 0.083,
+        scale(mmse_data_wide$`avg_entropy_FL-PL_first_run_eyes_open`) * 0.082,
+        scale(mmse_data_wide$auc_FL_first_run_eyes_open) * 0.076,
+        scale(mmse_data_wide$`auc_FL-PL_first_run_eyes_open`) * 0.07,
+        scale(mmse_data_wide$`auc_FR-PR_first_run_eyes_open`) * 0.053,
+        scale(mmse_data_wide$max_slope_PR_first_run_eyes_open) * -0.139,
+        scale(mmse_data_wide$`max_slope_ML-MR_first_run_eyes_open`) * -0.134,
+        scale(mmse_data_wide$`avg_entropy_F-P_first_run_eyes_open`) * -0.134,
+        scale(mmse_data_wide$max_slope_ML_first_run_eyes_open) * -0.102,
+        scale(mmse_data_wide$`auc_F-P_first_run_eyes_open`) * -0.084))
       
       hyp3 <- cor.test(aggregate_score, mmse_data_wide$gf_score, 
                        method = "pearson")
@@ -114,17 +114,17 @@ for (data in data_types) {
       mmse_data_male <- mmse_data_wide %>%
         filter(Gender == tolower("male"))
       aggregate_score_male <- rowMeans(cbind(
-        mmse_data_male$`max_slope_FR-PR_first_run_eyes_open` * 0.305,
-        mmse_data_male$avg_entropy_PR_first_run_eyes_open * 0.301,
-        mmse_data_male$avg_entropy_FL_first_run_eyes_open * 0.295,
-        mmse_data_male$`avg_entropy_FL-PL_first_run_eyes_open` * 0.279,
-        mmse_data_male$`max_slope_F-P_first_run_eyes_open` * 0.276,
-        mmse_data_male$`avg_entropy_FL-FR_first_run_eyes_open` * 0.195,
-        mmse_data_male$`auc_F-P_first_run_eyes_open` * -0.362,
-        mmse_data_male$`avg_entropy_PL-PR_first_run_eyes_open` * -0.293,
-        mmse_data_male$avg_entropy_F_first_run_eyes_open * -0.254,
-        mmse_data_male$`avg_entropy_FR-PR_first_run_eyes_open` * -0.196,
-        mmse_data_male$`avg_entropy_F-P_first_run_eyes_open` * -0.172))
+        scale(mmse_data_male$`max_slope_FR-PR_first_run_eyes_open`) * 0.305,
+        scale(mmse_data_male$avg_entropy_PR_first_run_eyes_open) * 0.301,
+        scale(mmse_data_male$avg_entropy_FL_first_run_eyes_open) * 0.295,
+        scale(mmse_data_male$`avg_entropy_FL-PL_first_run_eyes_open`) * 0.279,
+        scale(mmse_data_male$`max_slope_F-P_first_run_eyes_open`) * 0.276,
+        scale(mmse_data_male$`avg_entropy_FL-FR_first_run_eyes_open`) * 0.195,
+        scale(mmse_data_male$`auc_F-P_first_run_eyes_open`) * -0.362,
+        scale(mmse_data_male$`avg_entropy_PL-PR_first_run_eyes_open`) * -0.293,
+        scale(mmse_data_male$avg_entropy_F_first_run_eyes_open) * -0.254,
+        scale(mmse_data_male$`avg_entropy_FR-PR_first_run_eyes_open`) * -0.196,
+        scale(mmse_data_male$`avg_entropy_F-P_first_run_eyes_open`) * -0.172))
       
       hyp3_male <- cor.test(aggregate_score_male, mmse_data_male$gf_score, 
                        method = "pearson")
@@ -134,21 +134,21 @@ for (data in data_types) {
       mmse_data_female <- mmse_data_wide %>%
         filter(Gender == tolower("female"))
       aggregate_score_female <- rowMeans(cbind(
-        mmse_data_female$`avg_entropy_FL-FR_first_run_eyes_open` * 0.067,
-        mmse_data_female$`auc_FL-FR_first_run_eyes_open` * 0.064,
-        mmse_data_female$`auc_FL-PL_first_run_eyes_open` * 0.048,
-        mmse_data_female$`avg_entropy_PL-PR_first_run_eyes_open` * 0.043,
-        mmse_data_female$`auc_PL-PR_first_run_eyes_open` * 0.042,
-        mmse_data_female$`auc_FR-PR_first_run_eyes_open` * 0.041,
-        mmse_data_female$`avg_entropy_FL-PL_first_run_eyes_open` * 0.040,
-        mmse_data_female$avg_entropy_FL_first_run_eyes_open * 0.040,
-        mmse_data_female$auc_FL_first_run_eyes_open * 0.030,
-        mmse_data_female$auc_PR_first_run_eyes_open * -0.064,
-        mmse_data_female$max_slope_PR_first_run_eyes_open * -0.062,
-        mmse_data_female$`max_slope_ML-MR_first_run_eyes_open` * -0.054,
-        mmse_data_female$avg_entropy_PR_first_run_eyes_open * -0.049,
-        mmse_data_female$max_slope_ML_first_run_eyes_open * -0.049,
-        mmse_data_female$max_slope_P_first_run_eyes_open * -0.036
+        scale(mmse_data_female$`avg_entropy_FL-FR_first_run_eyes_open`) * 0.067,
+        scale(mmse_data_female$`auc_FL-FR_first_run_eyes_open`) * 0.064,
+        scale(mmse_data_female$`auc_FL-PL_first_run_eyes_open`) * 0.048,
+        scale(mmse_data_female$`avg_entropy_PL-PR_first_run_eyes_open`) * 0.043,
+        scale(mmse_data_female$`auc_PL-PR_first_run_eyes_open`) * 0.042,
+        scale(mmse_data_female$`auc_FR-PR_first_run_eyes_open`) * 0.041,
+        scale(mmse_data_female$`avg_entropy_FL-PL_first_run_eyes_open`) * 0.040,
+        scale(mmse_data_female$avg_entropy_FL_first_run_eyes_open) * 0.040,
+        scale(mmse_data_female$auc_FL_first_run_eyes_open) * 0.030,
+        scale(mmse_data_female$auc_PR_first_run_eyes_open) * -0.064,
+        scale(mmse_data_female$max_slope_PR_first_run_eyes_open) * -0.062,
+        scale(mmse_data_female$`max_slope_ML-MR_first_run_eyes_open`) * -0.054,
+        scale(mmse_data_female$avg_entropy_PR_first_run_eyes_open) * -0.049,
+        scale(mmse_data_female$max_slope_ML_first_run_eyes_open) * -0.049,
+        scale(mmse_data_female$max_slope_P_first_run_eyes_open) * -0.036
         ))
       
       hyp3_female <- cor.test(aggregate_score_female, mmse_data_female$gf_score, 
@@ -158,7 +158,6 @@ for (data in data_types) {
       
       hyp3_padj <- p.adjust(c(hyp3$p.value, hyp3_male$p.value, hyp3_female$p.value),
                             method = "holm")
-      print(hyp3_female)
       print(hyp3_padj)
       
       # Select sample data
