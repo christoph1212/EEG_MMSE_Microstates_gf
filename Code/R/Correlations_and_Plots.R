@@ -5,7 +5,7 @@
 # Last edit: November 2025
 
 if (!require("pacman")) install.packages("pacman")
-pacman::p_load(tidyverse, rlist, cowplot, ggtext)
+pacman::p_load(tidyverse, rlist, cowplot, ggtext, BayesFactor)
 
 options(scipen = 999)
 
@@ -277,7 +277,7 @@ for (data in data_types) {
       )))
     
     ggsave(filename = paste0(savepath, "MMSE_vectors.tiff"), 
-           plot = vector_plot, width = 8, height = 3, dpi = 600)
+           plot = vector_plot, width = 8, height = 5, dpi = 600)
     
     # Plot for All Condition
     summary_all <- summary_all %>%
@@ -436,8 +436,20 @@ for (data in data_types) {
     y <- microstate_data_sim_gev$gf_score
     full_sim <- cor.test(x, y, method = "pearson")
     
+    ## Exploratory Bayes Analysis
+    bf_sim <- correlationBF(y = y, x = x)
+    bf10_sim <- 0.4933309   
+    bf01_sim <- 1/bf10_sim
+    print(bf01_sim)
+    
     x <- microstate_data_sim_gev$gev_group
     full_gev <- cor.test(x, y, method = "pearson")
+    
+    ## Exploratory Bayes Analysis
+    bf_var <- correlationBF(y = y, x = x)
+    bf10_var <- 0.09830426   
+    bf01_var <- 1/bf10_var
+    print(bf01_var)
     
     # Female
     microstate_data_sim_gev_female <- microstate_data_sim_gev %>%
@@ -447,8 +459,20 @@ for (data in data_types) {
     y <- microstate_data_sim_gev_female$gf_score
     female_sim <- cor.test(x, y, method = "pearson")
     
+    ## Exploratory Bayes Analysis
+    bf_sim_fem <- correlationBF(y = y, x = x)
+    bf10_sim_fem <- 0.2618384   
+    bf01_sim_fem <- 1/bf10_sim_fem
+    print(bf01_sim_fem)
+    
     x <- microstate_data_sim_gev_female$gev_group
     female_gev <- cor.test(x, y, method = "pearson")
+    
+    ## Exploratory Bayes Analysis
+    bf_var_fem <- correlationBF(y = y, x = x)
+    bf10_var_fem <- 0.1939287    
+    bf01_var_fem <- 1/bf10_var_fem
+    print(bf01_var_fem)
     
     # Male
     microstate_data_sim_gev_male <- microstate_data_sim_gev %>%
@@ -458,8 +482,20 @@ for (data in data_types) {
     y <- microstate_data_sim_gev_male$gf_score
     male_sim <- cor.test(x, y, method = "pearson")
     
+    ## Exploratory Bayes Analysis
+    bf_sim_male <- correlationBF(y = y, x = x)
+    bf10_sim_male <- 0.5437884   
+    bf01_sim_male <- 1/bf10_sim_male
+    print(bf01_sim_male)
+    
     x <- microstate_data_sim_gev_male$gev_group
     male_gev <- cor.test(x, y, method = "pearson")
+    
+    ## Exploratory Bayes Analysis
+    bf_var_male <- correlationBF(y = y, x = x)
+    bf10_var_male <- 0.1479126   
+    bf01_var_male <- 1/bf10_var_male
+    print(bf01_var_male)
     
     hypothesis_2_3_correlations <- tibble(
       Sample = c("Full", "Full", "Female", "Female", "Male", "Male"),

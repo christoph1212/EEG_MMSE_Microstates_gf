@@ -12,7 +12,7 @@
 # Last edit: July 2025
 
 if (!require("pacman")) install.packages("pacman")
-pacman::p_load(pls, mvdalab, tidyverse, rlist, plspm)
+pacman::p_load(pls, mvdalab, tidyverse, rlist, plspm, BayesFactor)
 
 
 options(scipen = 999)
@@ -110,6 +110,12 @@ for (data in data_types) {
       
       print(hyp3)
       
+      ## Exploratory Bayes Analysis
+      bf <- correlationBF(y = mmse_data_wide$gf_score, x = aggregate_score)
+      bf10 <- 0.1025821
+      bf01 <- 1/bf10
+      print(bf01)
+      
       ## repeat exploratively for subsamples
       mmse_data_male <- mmse_data_wide %>%
         filter(Gender == tolower("male"))
@@ -130,6 +136,12 @@ for (data in data_types) {
                        method = "pearson")
       
       print(hyp3_male)
+      
+      ## Exploratory Bayes Analysis
+      bf_male <- correlationBF(y = mmse_data_male$gf_score, x = aggregate_score_male)
+      bf10_male <- 0.137789  
+      bf01_male <- 1/bf10_male
+      print(bf01_male)
       
       mmse_data_female <- mmse_data_wide %>%
         filter(Gender == tolower("female"))
@@ -155,6 +167,12 @@ for (data in data_types) {
                             method = "pearson")
       
       print(hyp3_female)
+      
+      ## Exploratory Bayes Analysis
+      bf_fem <- correlationBF(y = mmse_data_female$gf_score, x = aggregate_score_female)
+      bf10_fem <- 0.1438224 
+      bf01_fem <- 1/bf10_fem
+      print(bf01_fem)
       
       hyp3_padj <- p.adjust(c(hyp3$p.value, hyp3_male$p.value, hyp3_female$p.value),
                             method = "holm")
