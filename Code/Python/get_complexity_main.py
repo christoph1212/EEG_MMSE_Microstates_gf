@@ -45,7 +45,7 @@ if not dir_log.exists():
 # read names of files
 files = list(dir_preprocessed.rglob("*.set"))
 
-print(f"Loading {len(files)} files for microstate analysis\n")
+print(f"Loading {len(files)} files for entropy analysis\n")
 
 # initialize lists
 IDs_subjects = []
@@ -105,7 +105,7 @@ for cond in list(set(conditions)):
         if any(np.array(epoch_lengths)[indices] != 40):
             raise ValueError("All epochs must have a length of 40 seconds.")
 
-        print(f"\n***Computing microstates for condition: {cond}***\n")
+        print(f"\n***Computing entropy for condition: {cond}***\n")
 
         print(f"Number of subjects in this condition: {len(data_subset)}")
 
@@ -118,7 +118,7 @@ for cond in list(set(conditions)):
             gfp = np.std(data, axis=0)
             gfp_all.append(gfp)
             MSE_gfp, info_MSE_gfp = nk.entropy_multiscale(gfp, show=False, scale=21)
-            MSE_gfp_vals = info_MSE_gfp["Values"]
+            MSE_gfp_vals = info_MSE_gfp["Value"]
             MSE_gfp_all.append(MSE_gfp_vals)
 
         # MSE for each channel
@@ -126,12 +126,12 @@ for cond in list(set(conditions)):
         for data in data_subset:
             MSE = []
             # loop over channels and calculate MSE
-            for channel in range():
+            for channel in range(59):
 
                 MSE_auc, info_MSE = nk.entropy_multiscale(
                     data[channel, :], show=False, scale=21
                 )
-                MSE_vals = info_MSE["Values"]
+                MSE_vals = info_MSE["Value"]
                 MSE.append(MSE_vals)
 
             MSE_all.append(np.array(MSE))
@@ -163,7 +163,7 @@ for cond in list(set(conditions)):
             fe_ch_all = []
 
             # loop over channels
-            for channel in range(28):
+            for channel in range(59):
                 fe_ch = []
 
                 for div in range(divident):
@@ -192,13 +192,13 @@ for cond in list(set(conditions)):
             data_rounded = np.around(data, decimals=7)
             se_channel = []
             # loop over channels and calculate se
-            for channel in range(28):
+            for channel in range(59):
                 se = nk.entropy_shannon(data_rounded[channel, :])
                 se_channel.append(se[0])
 
             shannon_all.append(np.array(se_channel))
 
-        # %% Save variables in tables
+        # Save variables in tables
 
         channel_names = preproc.info.ch_names
 
@@ -244,14 +244,15 @@ for cond in list(set(conditions)):
 
         # MSE in spatial and temporal cluster for prediction models
         spatial_cluster = [
-            ["Fp1", "Fp2"],
-            ["FC1", "FC2", "FC5", "FC6"],
-            ["F3", "F7", "Fz", "F4", "F8"],
-            ["T7", "T8"],
-            ["CP5", "CP1", "CP6", "CP2"],
-            ["C3", "Cz", "C4"],
-            ["P3", "P7", "P4", "P8", "Pz"],
-            ["O1", "Oz", "O2"],
+            ["F3", "F4", "F7", "F8"],
+            ["F3", "F7", "FC3", "FP1"],
+            ["F4", "F8", "FC4", "FP2"],
+            ["FZ", "CZ", "PZ", "OZ"],
+            ["P3", "P4", "P7", "P8"],
+            ["P3", "P7", "O1", "PO3"],
+            ["P4", "P8", "O2", "PO4"],
+            ["C3", "T7", "CP1", "CP5"],
+            ["C4", "T8", "CP2", "CP6"],
         ]
         scale_cluster = (
             np.arange(0, 5),
@@ -326,6 +327,7 @@ for cond in list(set(conditions)):
 
         save_name = f"df_entropy_{cond}.pkl"
         df_complexity.to_pickle(dir_entropy / save_name)
+        df_complexity.to_csv(dir_entropy / save_name.replace(".pkl", ".csv"), index=False)
 
     except Exception as e:
         print(f"An error occurred while processing condition {cond}: {e}")
@@ -338,3 +340,5 @@ with open("channel_names", "wb") as fp:
     pickle.dump(channel_names, fp)
 
 np.savetxt("channel_names.csv", np.array(channel_names), delimiter=",", fmt="%s")
+
+# %%
