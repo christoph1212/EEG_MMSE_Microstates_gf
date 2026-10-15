@@ -52,11 +52,13 @@ print(f"Loading {len(files)} files for microstate analysis\n")
 IDs_subjects = []
 conditions = []
 epoch_lengths = []
+srate = []
 data_all = []
 
 # loop over all subjects (filenames saved in filesEC)
 for f in files:
 
+    print(f"Loading file: {files.index(f) + 1} of {len(files)}")
     # get filename
     fname = f.name
 
@@ -83,11 +85,15 @@ for f in files:
     # read file
     preproc = mne.io.read_raw_eeglab(dir_preprocessed / fname, preload=True)
 
+    # save sampling rate
+    srate.append(str(preproc.info["sfreq"]))
+
     # remap non-eeg channels
     data = preproc.get_data()
     data_all.append(data)
 
 epoch_lengths = np.array(epoch_lengths).astype(int).tolist()
+srate = np.array(srate).astype(float).tolist()
 conditions = np.array(conditions).flatten()
 
 # Compute microstates
@@ -256,8 +262,11 @@ for cond in list(set(conditions)):
             frequency.append(freq)
 
         # lifespan
-        lifespan = np.array(n_total_occurences_states_all) / np.array(
-            n_single_occurences_states_all
+        srate_subset = np.array(srate)[indices]
+        lifespan = (
+            np.array(n_total_occurences_states_all)
+            / np.array(n_single_occurences_states_all)
+            * (1000.0 / srate_subset)[:, None]
         )
 
         # lifespan at GFP peaks

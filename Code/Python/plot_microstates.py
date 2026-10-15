@@ -351,9 +351,8 @@ for ms_file, order, condition in zip(ms_files, ms_order_list, condition_labels):
 
         col_name = re.sub(
             r"_(\d)_(\d)",
-            lambda m: f"_{label_map.get(m.group(1),
-                                        m.group(1))}_{label_map.get(m.group(2),
-                                                                    m.group(2))}",
+            lambda m: f"_{label_map.get(m.group(1), m.group(1))}_"
+            f"{label_map.get(m.group(2), m.group(2))}",
             col_name,
         )
 
